@@ -40,13 +40,15 @@ def run_device(device: str, images: list[Path], question: str,
     )
     model = AutoModelForCausalLM.from_pretrained(
         MODEL_ID, revision=REVISION, trust_remote_code=True,
-        torch_dtype=torch.bfloat16, device_map=device,
+        dtype=torch.bfloat16, device_map=device,
     ).eval()
 
     captured: dict = {}
 
     def visual_hook(_module, _inputs, output):
-        tensor = output[0] if isinstance(output, tuple) else output
+        tensor = getattr(output, "last_hidden_state", None)
+        if tensor is None:
+            tensor = output[0] if isinstance(output, tuple) else output
         captured["visual"] = to_numpy(tensor)
 
     model.model.visual.register_forward_hook(visual_hook)
