@@ -24,6 +24,54 @@ The staged verification plan, gates, and per-stage lab records live in
 | 3 | Proactive streaming gate | passed in float32 (see caveat) |
 | 4 | Codec-native sparse video | passed in float32 |
 
+## Usage
+
+Two scripts mirror the CLI of microsoft/Mage's `mage_vl/`. Online mode is
+deliberately absent: it exists to talk to a CUDA SGLang server, which is the
+opposite of what this port is for.
+
+```sh
+uv sync
+python scripts/convert_weights.py        # -> weights/mage-vl-bf16
+python scripts/convert_gate_weights.py   # streaming gate
+
+# image
+python inference_base.py --mode offline --image photo.jpg \
+  --question "Describe this image."
+
+# frame-sampled video
+python inference_base.py --mode offline --video clip.mp4 \
+  --video-backend frames
+
+# codec-native video (needs the container wrapper below)
+export CV_PREINFER_BIN=$PWD/docker/cv-preinfer
+python inference_base.py --mode offline --video clip.mp4 --video-backend codec
+
+# event-gated streaming
+python inference_streaming.py --video clip.mp4 --segment-sec 4
+```
+
+`--verbose` on `inference_base.py` prints load time, prompt length, tokens/s,
+and peak memory to stderr.
+
+The codec backend needs `cv-preinfer`, which ships Linux-only wheels. Build the
+container once and the scripts drive it transparently:
+
+```sh
+docker build --platform linux/arm64 -t mage-cvprep:0.2.5 -f docker/Dockerfile.cvprep docker/
+```
+
+`inference_streaming.py` runs in float32 by default, because the gate's
+decision flips under bfloat16 when a score sits near the threshold. Note what
+the gate actually decides: it separates content types — a sports broadcast
+scores ~0.7-0.8, a quiet hallway ~0.05-0.11 — but it does **not** track event
+times within a stream. It answers "is this stream worth commentating on", not
+"did something just happen".
+
+Prompt building (`mage_vl_mlx.prompt`) uses `tokenizers` and `jinja2`, neither
+of which pulls in torch. Its token ids match the official processor exactly for
+images, frame-sampled video, and codec video.
+
 ### Stage 1 results
 
 Weight keys: 696 mapped, 0 missing, 0 unused, 0 shape mismatches.

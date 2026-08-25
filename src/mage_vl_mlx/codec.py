@@ -130,3 +130,67 @@ def preprocess_codec(
         "dropped_canvases": dropped,
         "fps": assets["fps"],
     }
+
+
+def run_cv_preinfer(
+    video_path: str | Path,
+    patch: int = 16,
+    max_pixels: int = 150000,
+    cache_root: str | Path | None = None,
+) -> Path:
+    """Produce (or reuse) the codec asset directory for a video.
+
+    Shells out to the cv-preinfer binary named by CV_PREINFER_BIN, matching how
+    the official code invokes it, and caches per video and config the same way.
+    """
+    import hashlib
+    import os
+    import shutil
+    import subprocess
+    import tempfile
+
+    video_path = str(Path(video_path).resolve())
+    root = Path(cache_root) if cache_root else Path(
+        os.getenv("ONLINE_CODEC_CACHE_DIR",
+                  Path(os.getenv("HF_HOME", Path.home() / ".cache/huggingface"))
+                  / "online_codec"))
+    key = hashlib.md5(
+        f"{video_path}|eng=hevc|tc=32|gs=32|ipg=4|patch={patch}"
+        f"|mp={max_pixels}|mask=off".encode()
+    ).hexdigest()
+    out_dir = root / f"{Path(video_path).stem}_{key}"
+    if (out_dir / "meta.json").exists() and (out_dir / "src_patch_position.npy").exists():
+        return out_dir
+
+    binary = os.getenv("CV_PREINFER_BIN", "cv-preinfer")
+    if shutil.which(binary) is None and not os.path.isfile(binary):
+        raise RuntimeError(
+            f"'{binary}' not found. codec-video-prep has no macOS build; "
+            "point CV_PREINFER_BIN at docker/cv-preinfer to run it in a container."
+        )
+
+    import cv2
+
+    capture = cv2.VideoCapture(video_path)
+    total = int(capture.get(cv2.CAP_PROP_FRAME_COUNT) or 0)
+    capture.release()
+
+    root.mkdir(parents=True, exist_ok=True)
+    tmp_dir = Path(tempfile.mkdtemp(dir=str(root), prefix=f".tmp_{out_dir.name[:48]}_"))
+    try:
+        subprocess.run([
+            binary, "--video", video_path, "--out_dir", str(tmp_dir),
+            "--num_sampled_frames", str(min(256, total)),
+            "--grouping_mode", "readiness", "--group_size", "32",
+            "--images_per_group", "4", "--patch", str(patch),
+            "--max_pixels", str(max_pixels), "--readiness_sum_threshold", "0",
+            "--min_group_frames", "8", "--max_group_frames", "64",
+            "--avoid_keyframes", "--canvas_format", "jpg",
+        ], check=True, capture_output=True, text=True)
+        if out_dir.exists():
+            shutil.rmtree(out_dir)
+        tmp_dir.rename(out_dir)
+    except Exception:
+        shutil.rmtree(tmp_dir, ignore_errors=True)
+        raise
+    return out_dir

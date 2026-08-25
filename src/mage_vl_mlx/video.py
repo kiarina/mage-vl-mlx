@@ -158,7 +158,10 @@ def patchify(frames: list[np.ndarray], patch_size: int = 16, merge_size: int = 2
 def build_patch_positions(
     frame_indices: list[int], grid_h: int, grid_w: int, merge_size: int = 2
 ) -> np.ndarray:
-    """Block-layout [t, h, w] positions. The t axis uses real frame indices."""
+    """Block-layout [t, h, w] positions. The t axis uses real frame indices.
+
+    A single image is the T=1 case: pass [0] as frame_indices.
+    """
     t = len(frame_indices)
     h_coords = np.tile(np.repeat(np.arange(grid_h), grid_w), t)
     w_coords = np.tile(np.arange(grid_w), grid_h * t)
