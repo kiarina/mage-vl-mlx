@@ -10,7 +10,8 @@ quantitative parity against the official PyTorch implementation.
 
 ## Status
 
-Stage 1 (static image parity) is in progress. Nothing here is usable yet.
+Stage 1 (static image parity) passes in float32. Images work end to end;
+video, streaming, and the codec path are not implemented.
 
 The staged verification plan, gates, and per-stage lab records live in
 [kiarina/labs](https://github.com/kiarina/labs/blob/main/docs/mage-vl-mlx-port.md).
@@ -18,10 +19,37 @@ The staged verification plan, gates, and per-stage lab records live in
 | Stage | Scope | Status |
 |---|---|---|
 | 0 | Codec preprocessing portability | done (conditional pass) |
-| 1 | Static image parity | in progress |
+| 1 | Static image parity | passed in float32 |
 | 2 | Torch-free frame-sampled video | not started |
 | 3 | Proactive streaming gate | not started |
 | 4 | Codec-native sparse video | not started |
+
+### Stage 1 results
+
+Weight keys: 696 mapped, 0 missing, 0 unused, 0 shape mismatches.
+
+Against float32 CPU fixtures (3 images, greedy 64 tokens):
+
+| Image | vision rel err | vision cosine | greedy |
+|---|---:|---:|---:|
+| objects | 1.56e-05 | 1.000000 | 64/64 |
+| ocr | 1.15e-05 | 1.000000 | 64/64 |
+| street_scene | 8.93e-06 | 1.000000 | 64/64 |
+
+Against bfloat16 MPS fixtures the same code diverges (vision cosine
+0.9988–0.9992, greedy 7–61 of 64). The logic is identical, so this is
+accumulated bfloat16 rounding differing between MLX and PyTorch-MPS
+kernels — PyTorch's own CPU/MPS bf16 gap on this model is cosine 0.99953.
+Compare in float32; treat bfloat16 as the deployment precision.
+
+Speed on an M4 Max (bfloat16, 1561-token prompt, greedy 64, 3 runs):
+21.9 tokens/s, MLX peak memory 9.88 GB.
+
+### Known limitations
+
+- `scripts/generate_fixtures.py --dtype float32 --devices mps` hangs in
+  PyTorch's MPS bf16→fp32 cast kernel. Generate float32 fixtures on CPU
+  (~35 s per image); bfloat16 fixtures work on MPS (~6 s per image).
 
 ## Reference pins
 

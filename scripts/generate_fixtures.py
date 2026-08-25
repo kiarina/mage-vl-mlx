@@ -33,14 +33,17 @@ def to_numpy(t: torch.Tensor) -> np.ndarray:
     return t.detach().to(torch.float32).cpu().numpy()
 
 
+DTYPES = {"bfloat16": torch.bfloat16, "float32": torch.float32}
+
+
 def run_device(device: str, images: list[Path], question: str,
-               max_new_tokens: int, out_dir: Path) -> dict:
+               max_new_tokens: int, out_dir: Path, dtype_name: str = "bfloat16") -> dict:
     processor = AutoProcessor.from_pretrained(
         MODEL_ID, revision=REVISION, trust_remote_code=True
     )
     model = AutoModelForCausalLM.from_pretrained(
         MODEL_ID, revision=REVISION, trust_remote_code=True,
-        dtype=torch.bfloat16, device_map=device,
+        dtype=DTYPES[dtype_name], device_map=device,
     ).eval()
 
     captured: dict = {}
@@ -89,10 +92,11 @@ def run_device(device: str, images: list[Path], question: str,
         case_dir = out_dir / stem
         case_dir.mkdir(parents=True, exist_ok=True)
         np.savez_compressed(
-            case_dir / f"{device}.npz",
+            case_dir / f"{device}-{dtype_name}.npz",
             input_ids=to_numpy(inputs["input_ids"]),
             pixel_values=to_numpy(inputs["pixel_values"]),
             image_grid_thw=to_numpy(inputs["image_grid_thw"]),
+            patch_positions=to_numpy(inputs["patch_positions"]),
             visual=captured["visual"],
             logits_last=to_numpy(forward_out.logits[0, -1]),
             greedy_ids=to_numpy(greedy_ids),
@@ -105,14 +109,14 @@ def run_device(device: str, images: list[Path], question: str,
             "wall_s": round(wall_s, 2),
             "answer": answer.strip(),
         }
-        print(f"[{device}] {stem}: visual{results[stem]['visual_shape']} "
+        print(f"[{device}/{dtype_name}] {stem}: visual{results[stem]['visual_shape']} "
               f"prompt={prompt_len} wall={wall_s:.1f}s")
     return results
 
 
-def compare(out_dir: Path, devices: list[str], cases: list[str]) -> dict:
+def compare(out_dir: Path, tags: list[str], cases: list[str]) -> dict:
     diffs: dict = {}
-    base, other = devices[0], devices[1]
+    base, other = tags[0], tags[1]
     for stem in cases:
         a = np.load(out_dir / stem / f"{base}.npz")
         b = np.load(out_dir / stem / f"{other}.npz")
@@ -144,6 +148,7 @@ def main():
     parser.add_argument("--question", default="Describe this image.")
     parser.add_argument("--max-new-tokens", type=int, default=64)
     parser.add_argument("--devices", default="cpu,mps")
+    parser.add_argument("--dtype", default="bfloat16", choices=sorted(DTYPES))
     parser.add_argument("--out", type=Path, default=Path("fixtures/stage1"))
     args = parser.parse_args()
 
@@ -155,20 +160,21 @@ def main():
         "revision": REVISION,
         "question": args.question,
         "max_new_tokens": args.max_new_tokens,
+        "dtype": args.dtype,
         "torch": torch.__version__,
         "platform": platform.platform(),
         "devices": {},
     }
     for device in devices:
         summary["devices"][device] = run_device(
-            device, args.image, args.question, args.max_new_tokens, args.out
+            device, args.image, args.question, args.max_new_tokens, args.out, args.dtype
         )
     if len(devices) >= 2:
         summary["diffs"] = compare(
-            args.out, devices, [p.stem for p in args.image]
+            args.out, [f"{d}-{args.dtype}" for d in devices], [p.stem for p in args.image]
         )
-    (args.out / "summary.json").write_text(json.dumps(summary, indent=2))
-    print(f"wrote {args.out / 'summary.json'}")
+    (args.out / f"summary-{args.dtype}.json").write_text(json.dumps(summary, indent=2))
+    print(f"wrote {args.out / f'summary-{args.dtype}.json'}")
 
 
 if __name__ == "__main__":
