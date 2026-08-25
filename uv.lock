@@ -272,9 +272,12 @@ name = "mage-vl-mlx"
 version = "0.0.1"
 source = { editable = "." }
 dependencies = [
+    { name = "jinja2" },
     { name = "mlx" },
     { name = "numpy" },
+    { name = "opencv-python" },
     { name = "pillow" },
+    { name = "tokenizers" },
 ]
 
 [package.dev-dependencies]
@@ -290,9 +293,12 @@ fixtures = [
 
 [package.metadata]
 requires-dist = [
+    { name = "jinja2", specifier = ">=3.1" },
     { name = "mlx", specifier = ">=0.32.1" },
     { name = "numpy", specifier = ">=1.26" },
+    { name = "opencv-python", specifier = ">=4.8" },
     { name = "pillow", specifier = ">=10.0" },
+    { name = "tokenizers", specifier = ">=0.20" },
 ]
 
 [package.metadata.requires-dev]
