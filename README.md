@@ -62,11 +62,51 @@ docker build --platform linux/arm64 -t mage-cvprep:0.2.5 -f docker/Dockerfile.cv
 ```
 
 `inference_streaming.py` runs in float32 by default, because the gate's
-decision flips under bfloat16 when a score sits near the threshold. Note what
-the gate actually decides: it separates content types — a sports broadcast
-scores ~0.7-0.8, a quiet hallway ~0.05-0.11 — but it does **not** track event
-times within a stream. It answers "is this stream worth commentating on", not
-"did something just happen".
+decision flips under bfloat16 when a score sits near the threshold.
+
+`--segment-sec` is the decision interval: the gate emits one speak/silent
+decision per segment. It works down to 1s with either backend. A trailing
+segment shorter than a codec group cannot be preprocessed and is skipped, the
+way the official script skips unusable segments.
+
+### Using this for event detection
+
+The gate is not an event detector. It separates content types — a sports
+broadcast scores ~0.7-0.8, a quiet hallway ~0.05-0.11 — but its score does not
+reliably track *when* something happens. On a clip of a glass falling at ~6-7s,
+sampled at 1s segments, the scores were:
+
+```
+0.02  0.52  0.14  0.49  0.45  0.07  0.50  0.74
+                                      ^^^^  ^^^^  glass falls here
+```
+
+The event segments (0.50, 0.74) are barely separable from a segment where
+nothing happens (0.52), and on other clips the event scores *below* its own
+quiet segments.
+
+**The generated text discriminates far better than the score.** Same run, same
+segments:
+
+```
+1-2s (0.52): "The scene remains static ... no noticeable changes or movements."
+3-4s (0.49): "The scene remains static ... no noticeable changes or movements."
+6-7s (0.50): "Suddenly, a clear glass container starts to move, tilting and
+              rotating in an unusual manner."
+7-8s (0.74): "a glass object is seen moving rapidly, creating a blurred effect"
+```
+
+So the practical recipe is to use the gate only as a cheap pre-filter and read
+the text for the actual decision:
+
+```sh
+python inference_streaming.py --video clip.mp4 --segment-sec 1 \
+  --gate-threshold 0.3          # or 0 to describe every segment
+```
+
+Object identity wanders between segments (the same glass is described as a
+pitcher, then a glass with a spoon), but the static-versus-moving distinction
+stays consistent — which is the part event detection needs.
 
 Prompt building (`mage_vl_mlx.prompt`) uses `tokenizers` and `jinja2`, neither
 of which pulls in torch. Its token ids match the official processor exactly for
@@ -180,6 +220,14 @@ canvases above threshold, max 0.81), consistently at the last canvas of each
 
 ### Known limitations
 
+- **The model ignores system messages.** The chat template supports one — pass
+  it through `PromptBuilder.render()` — but the checkpoint does not follow it.
+  "Always begin every reply with the word BANANA", "You are a pirate", and a
+  request to answer in Japanese were all ignored, with output identical to the
+  default system turn. The CLI deliberately exposes no `--system` flag. Steer
+  through `--question` instead, which does change the output.
+- No quantization: bfloat16 only, so this is slower than an 8-bit checkpoint.
+- No test suite; verification runs through `scripts/check_*.py` by hand.
 - `scripts/generate_fixtures.py --dtype float32 --devices mps` hangs in
   PyTorch's MPS bf16→fp32 cast kernel. Generate float32 fixtures on CPU
   (~35 s per image); bfloat16 fixtures work on MPS (~6 s per image).
