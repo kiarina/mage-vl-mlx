@@ -10,19 +10,23 @@ quantitative parity against the official PyTorch implementation.
 
 ## Status
 
-All four stages pass in float32. Images, frame-sampled video, the proactive
-streaming gate, and the codec-native sparse video path work end to end.
+Every Mage-VL path works end to end and matches the official PyTorch
+implementation in float32.
 
-The staged verification plan, gates, and per-stage lab records live in
+| What | Verified against the official implementation |
+|---|---|
+| Static images | Weight keys 696/696; vision tower to 1.6e-05 relative error; greedy output identical on 3 images |
+| Frame-sampled video | Preprocessing bit-identical; greedy output identical on 3 clips |
+| Proactive streaming gate | Mamba mixer to 4.4e-07 (bar: 1.0e-5); speak/silent timeline identical — with one caveat about the reference, below |
+| Codec-native sparse video | Selected patches and pixel values bit-identical; greedy output identical |
+
+"Matches in float32" is the operative phrase: bfloat16 is the deployment
+precision and does **not** reproduce the reference exactly. Each section below
+gives the numbers and says what is not covered.
+
+The work was done as a staged verification plan, and each stage has a lab
+record with fixtures, failed attempts, and measurements, in
 [kiarina/labs](https://github.com/kiarina/labs/blob/main/docs/mage-vl-mlx-port.md).
-
-| Stage | Scope | Status |
-|---|---|---|
-| 0 | Codec preprocessing portability | done (conditional pass) |
-| 1 | Static image parity | passed in float32 |
-| 2 | Torch-free frame-sampled video | passed in float32 |
-| 3 | Proactive streaming gate | passed in float32 (see caveat) |
-| 4 | Codec-native sparse video | passed in float32 |
 
 ## Usage
 
@@ -112,7 +116,14 @@ Prompt building (`mage_vl_mlx.prompt`) uses `tokenizers` and `jinja2`, neither
 of which pulls in torch. Its token ids match the official processor exactly for
 images, frame-sampled video, and codec video.
 
-### Stage 1 results
+## Verification
+
+Numbers below come from comparing against the official PyTorch implementation
+on an M4 Max. Fixtures are generated in float32 on CPU; see `scripts/check_*.py`.
+
+### Static images
+
+[Lab record](https://github.com/kiarina/labs/blob/main/2026/08/25/mage-vl-mlx-stage1-image-parity/README.md) — fixtures, failed attempts, full measurements.
 
 Weight keys: 696 mapped, 0 missing, 0 unused, 0 shape mismatches.
 
@@ -133,7 +144,9 @@ Compare in float32; treat bfloat16 as the deployment precision.
 Speed on an M4 Max (bfloat16, 1561-token prompt, greedy 64, 3 runs):
 21.9 tokens/s, MLX peak memory 9.88 GB.
 
-### Stage 2 results
+### Frame-sampled video
+
+[Lab record](https://github.com/kiarina/labs/blob/main/2026/08/25/mage-vl-mlx-stage2-video-parity/README.md) — fixtures, failed attempts, full measurements.
 
 Preprocessing (`mage_vl_mlx.video`) uses only OpenCV, NumPy, and PIL. On
 three 8-frame clips — including one whose frame size forces a resize — the
@@ -161,7 +174,9 @@ Two details a port has to get right, both verified here:
 Video speed on an M4 Max (bfloat16, 8 frames, 3159-token prompt, greedy 64):
 14.4 tokens/s, MLX peak memory 10.66 GB, preprocessing 0.15 s.
 
-### Stage 3 results
+### Proactive streaming gate
+
+[Lab record](https://github.com/kiarina/labs/blob/main/2026/08/25/mage-vl-mlx-stage3-streaming-gate/README.md) — fixtures, failed attempts, full measurements.
 
 The gate (`mage_vl_mlx.streaming`) mean-pools each frame's patches into one
 EPFE token, runs a Mamba1 SSM, and classifies every step silent/speak with a
@@ -188,7 +203,9 @@ precision. Run the gate in float32 when the decision matters.
 End to end (video file to gate logits) on an M4 Max in bfloat16: about 0.8-1.0 s
 for an 8-frame clip.
 
-### Stage 4 results
+### Codec-native sparse video
+
+[Lab record](https://github.com/kiarina/labs/blob/main/2026/08/26/mage-vl-mlx-stage4-codec-native/README.md) — fixtures, failed attempts, full measurements.
 
 `mage_vl_mlx.codec` consumes a codec asset directory (canvases +
 `src_patch_position.npy` + `meta.json`) with only NumPy and PIL. Against the
@@ -218,7 +235,7 @@ near zero on real events; with codec input it fires (soccer clip: 8 of 28
 canvases above threshold, max 0.81), consistently at the last canvas of each
 4-canvas group.
 
-### Known limitations
+## Known limitations
 
 - **The model ignores system messages.** The chat template supports one — pass
   it through `PromptBuilder.render()` — but the checkpoint does not follow it.
