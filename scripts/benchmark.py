@@ -19,6 +19,8 @@ def main():
     parser.add_argument("--weights", type=Path, default=Path("weights/mage-vl-bf16"))
     parser.add_argument("--fixture", type=Path,
                         default=Path("fixtures/stage1/objects_1536x1024_358kb/mps-bfloat16.npz"))
+    parser.add_argument("--video", type=Path,
+                        help="preprocess this video instead of using the fixture's pixels")
     parser.add_argument("--max-new-tokens", type=int, default=64)
     parser.add_argument("--runs", type=int, default=3)
     args = parser.parse_args()
@@ -28,10 +30,21 @@ def main():
     load_s = time.perf_counter() - t0
 
     fixture = np.load(args.fixture)
-    pixel_values = mx.array(fixture["pixel_values"]).astype(mx.bfloat16)
-    grid_thw = mx.array(fixture["image_grid_thw"].astype(np.int32))
-    patch_positions = mx.array(fixture["patch_positions"].astype(np.int32))
     input_ids = mx.array(fixture["input_ids"].astype(np.int32))
+    if args.video is not None:
+        from mage_vl_mlx.video import preprocess_video
+
+        t1 = time.perf_counter()
+        processed = preprocess_video(str(args.video))
+        preprocess_s = time.perf_counter() - t1
+        pixel_values = mx.array(processed["pixel_values"]).astype(mx.bfloat16)
+        grid_thw = mx.array(processed["grid_thw"].astype(np.int32))
+        patch_positions = mx.array(processed["patch_positions"].astype(np.int32))
+    else:
+        preprocess_s = None
+        pixel_values = mx.array(fixture["pixel_values"]).astype(mx.bfloat16)
+        grid_thw = mx.array(fixture["image_grid_thw"].astype(np.int32))
+        patch_positions = mx.array(fixture["patch_positions"].astype(np.int32))
 
     runs = []
     for _ in range(args.runs):
@@ -50,6 +63,7 @@ def main():
 
     result = {
         "load_s": round(load_s, 2),
+        "preprocess_s": None if preprocess_s is None else round(preprocess_s, 3),
         "prompt_tokens": int(input_ids.shape[1]),
         "runs": runs,
         "peak_memory_gb": round(mx.get_peak_memory() / 1024**3, 3),

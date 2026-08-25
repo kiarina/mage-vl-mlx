@@ -10,8 +10,9 @@ quantitative parity against the official PyTorch implementation.
 
 ## Status
 
-Stage 1 (static image parity) passes in float32. Images work end to end;
-video, streaming, and the codec path are not implemented.
+Stages 1 and 2 pass in float32. Images and frame-sampled video work end to
+end with torch-free preprocessing; streaming and the codec path are not
+implemented.
 
 The staged verification plan, gates, and per-stage lab records live in
 [kiarina/labs](https://github.com/kiarina/labs/blob/main/docs/mage-vl-mlx-port.md).
@@ -20,7 +21,7 @@ The staged verification plan, gates, and per-stage lab records live in
 |---|---|---|
 | 0 | Codec preprocessing portability | done (conditional pass) |
 | 1 | Static image parity | passed in float32 |
-| 2 | Torch-free frame-sampled video | not started |
+| 2 | Torch-free frame-sampled video | passed in float32 |
 | 3 | Proactive streaming gate | not started |
 | 4 | Codec-native sparse video | not started |
 
@@ -44,6 +45,34 @@ Compare in float32; treat bfloat16 as the deployment precision.
 
 Speed on an M4 Max (bfloat16, 1561-token prompt, greedy 64, 3 runs):
 21.9 tokens/s, MLX peak memory 9.88 GB.
+
+### Stage 2 results
+
+Preprocessing (`mage_vl_mlx.video`) uses only OpenCV, NumPy, and PIL. On
+three 8-frame clips — including one whose frame size forces a resize — the
+selected frame indices, grid, patch positions, and pixel values are
+**bit-identical** to the official processor, and greedy 64-token output
+matches on all three in float32.
+
+| Video | preprocess | vision rel err | greedy |
+|---|---|---:|---:|
+| pan_objects | bit-exact | 3.61e-04 | 64/64 |
+| street_ocr | bit-exact | 1.82e-05 | 64/64 |
+| faces_odd (resized) | bit-exact | 8.89e-06 | 64/64 |
+
+Two details a port has to get right, both verified here:
+
+- `patch_positions`'s t axis carries **real source frame indices**
+  (e.g. 0, 17, 34, …, 119), not a dense 0..T-1 range.
+- `MageVLProcessor` routes video through the image path and emits **one
+  `image_grid_thw` row per frame**, so the vision tower attends within each
+  frame. The standalone `MageVLVideoProcessor` instead returns a merged
+  `[T, h, w]` row, which with `frame_windows_size=4` would attend across
+  four frames. Pixel values and patch positions are identical either way;
+  only the attention windows differ. This port follows the inference path.
+
+Video speed on an M4 Max (bfloat16, 8 frames, 3159-token prompt, greedy 64):
+14.4 tokens/s, MLX peak memory 10.66 GB, preprocessing 0.15 s.
 
 ### Known limitations
 

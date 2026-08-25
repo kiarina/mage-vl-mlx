@@ -4,3 +4,4 @@ __pycache__/
 fixtures/
 output/
 weights/
+testdata/

@@ -57,6 +57,20 @@ class MageVL(nn.Module):
     def __call__(self, embeds: mx.array, cache: list[KVCache] | None = None) -> mx.array:
         return self.lm_head(self.language(embeds, cache))
 
+    def embed_video(
+        self, input_ids: mx.array, video_path: str, **preprocess_kwargs
+    ) -> mx.array:
+        """Preprocess a video torch-free and embed it into the prompt."""
+        from .video import preprocess_video
+
+        processed = preprocess_video(video_path, **preprocess_kwargs)
+        return self.embed(
+            input_ids,
+            mx.array(processed["pixel_values"]),
+            mx.array(processed["grid_thw"].astype("int32")),
+            mx.array(processed["patch_positions"].astype("int32")),
+        )
+
     def generate(
         self,
         input_ids: mx.array,
