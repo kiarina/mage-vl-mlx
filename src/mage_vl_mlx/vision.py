@@ -37,12 +37,25 @@ class VisionRotaryEmbedding:
         self.inv_freq_h = 1.0 / (base ** (mx.arange(self.h_size, dtype=mx.float32) / self.h_size))
         self.inv_freq_w = 1.0 / (base ** (mx.arange(self.w_size, dtype=mx.float32) / self.w_size))
 
-    def from_positions(self, patch_positions: mx.array) -> mx.array:
-        """patch_positions: [seq, 3] of (t, h, w) -> freqs [seq, head_dim // 2]."""
+    def from_positions(
+        self, patch_positions: mx.array, inv_freq_dtype: mx.Dtype | None = None
+    ) -> mx.array:
+        """patch_positions: [seq, 3] of (t, h, w) -> freqs [seq, head_dim // 2].
+
+        inv_freq_dtype rounds the frequency tables before use. The streaming
+        gate needs this: the official _streammind_vision_tokens casts the RoPE
+        buffers to the pixel dtype, because the gate was trained after the whole
+        model had been cast to bfloat16. It is a no-op in float32.
+        """
         pos = patch_positions.astype(mx.float32)
-        ft = mx.outer(pos[:, 0], self.inv_freq_t)
-        fh = mx.outer(pos[:, 1], self.inv_freq_h)
-        fw = mx.outer(pos[:, 2], self.inv_freq_w)
+        inv_t, inv_h, inv_w = self.inv_freq_t, self.inv_freq_h, self.inv_freq_w
+        if inv_freq_dtype is not None:
+            inv_t = inv_t.astype(inv_freq_dtype).astype(mx.float32)
+            inv_h = inv_h.astype(inv_freq_dtype).astype(mx.float32)
+            inv_w = inv_w.astype(inv_freq_dtype).astype(mx.float32)
+        ft = mx.outer(pos[:, 0], inv_t)
+        fh = mx.outer(pos[:, 1], inv_h)
+        fw = mx.outer(pos[:, 2], inv_w)
         return mx.concatenate([ft, fh, fw], axis=-1)
 
 
@@ -151,13 +164,17 @@ class VisionModel(nn.Module):
         return bounds
 
     def __call__(
-        self, pixel_values: mx.array, grid_thw: mx.array, patch_positions: mx.array
+        self,
+        pixel_values: mx.array,
+        grid_thw: mx.array,
+        patch_positions: mx.array,
+        rope_inv_freq_dtype: mx.Dtype | None = None,
     ) -> mx.array:
         """pixel_values: [total_patches, C*P*P] -> merged features [total/4, out_hidden]."""
         x = self.patch_embed(pixel_values)[None]
         total_patches = x.shape[1]
 
-        freqs = self.rope.from_positions(patch_positions)
+        freqs = self.rope.from_positions(patch_positions, rope_inv_freq_dtype)
         freqs = mx.concatenate([freqs, freqs], axis=-1)
         cos = mx.cos(freqs)[None, None]
         sin = mx.sin(freqs)[None, None]

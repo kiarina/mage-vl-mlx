@@ -10,9 +10,9 @@ quantitative parity against the official PyTorch implementation.
 
 ## Status
 
-Stages 1 and 2 pass in float32. Images and frame-sampled video work end to
-end with torch-free preprocessing; streaming and the codec path are not
-implemented.
+Stages 1, 2, and 3 pass in float32. Images, frame-sampled video, and the
+proactive streaming gate work end to end with torch-free preprocessing; the
+codec path is not implemented.
 
 The staged verification plan, gates, and per-stage lab records live in
 [kiarina/labs](https://github.com/kiarina/labs/blob/main/docs/mage-vl-mlx-port.md).
@@ -22,7 +22,7 @@ The staged verification plan, gates, and per-stage lab records live in
 | 0 | Codec preprocessing portability | done (conditional pass) |
 | 1 | Static image parity | passed in float32 |
 | 2 | Torch-free frame-sampled video | passed in float32 |
-| 3 | Proactive streaming gate | not started |
+| 3 | Proactive streaming gate | passed in float32 (see caveat) |
 | 4 | Codec-native sparse video | not started |
 
 ### Stage 1 results
@@ -73,6 +73,33 @@ Two details a port has to get right, both verified here:
 
 Video speed on an M4 Max (bfloat16, 8 frames, 3159-token prompt, greedy 64):
 14.4 tokens/s, MLX peak memory 10.66 GB, preprocessing 0.15 s.
+
+### Stage 3 results
+
+The gate (`mage_vl_mlx.streaming`) mean-pools each frame's patches into one
+EPFE token, runs a Mamba1 SSM, and classifies every step silent/speak with a
+4-layer Qwen3 head — note that head uses rope_theta 10000, not the decoder's
+5e6. All 64 gate weights map with no missing or unused keys.
+
+Against float32 fixtures on four 8-frame clips, the mixer — fed the
+reference's own input, which is what the gate threshold is about — matches to
+**2.7e-07..4.4e-07 max abs**, against a 1.0e-5 bar, and the speak/silent
+timeline matches on all four.
+
+**Caveat on the reference.** mamba-ssm cannot be installed on macOS: its
+setup.py parses `torch.version.cuda`, which is None there. The reference
+therefore runs `scripts/reference_gate.py`, a pure-PyTorch reimplementation of
+the SSM block following mamba_ssm's own published reference semantics. Every
+other part of the gate is stock PyTorch/transformers. Agreement with
+mamba-ssm's CUDA kernels is untested.
+
+**The gate's decision is not bfloat16-safe.** On a clip where p_speak sits at
+0.5022 in float32, bfloat16 gives 0.4977 — the same step flips from speak to
+silent. Clips whose probabilities sit far from the threshold match in either
+precision. Run the gate in float32 when the decision matters.
+
+End to end (video file to gate logits) on an M4 Max in bfloat16: about 0.8-1.0 s
+for an 8-frame clip.
 
 ### Known limitations
 

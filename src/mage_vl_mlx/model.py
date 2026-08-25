@@ -57,6 +57,27 @@ class MageVL(nn.Module):
     def __call__(self, embeds: mx.array, cache: list[KVCache] | None = None) -> mx.array:
         return self.lm_head(self.language(embeds, cache))
 
+    def vision_tokens(
+        self,
+        pixel_values: mx.array,
+        grid_thw: mx.array,
+        patch_positions: mx.array,
+    ) -> mx.array:
+        """Vision features shaped [1, T, patches_per_frame, D] for the gate.
+
+        Mirrors the official _streammind_vision_tokens, including its cast of
+        the RoPE frequency tables to the pixel dtype.
+        """
+        merged = self.vision(
+            pixel_values, grid_thw, patch_positions,
+            rope_inv_freq_dtype=pixel_values.dtype,
+        )
+        rows = grid_thw.tolist()
+        time = sum(int(row[0]) for row in rows)
+        merge = self.config.vision.spatial_merge_size
+        per_frame = (int(rows[0][1]) // merge) * (int(rows[0][2]) // merge)
+        return merged.reshape(1, time, per_frame, -1)
+
     def embed_video(
         self, input_ids: mx.array, video_path: str, **preprocess_kwargs
     ) -> mx.array:
