@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+# Drop-in cv-preinfer for macOS: forwards to the Linux binary inside Docker.
+#
+# The checkpoint's codec path shells out to `cv-preinfer` and passes absolute
+# paths for --video and --out_dir. Those paths are bind-mounted at the same
+# location inside the container, so the arguments pass through untouched.
+#
+# Point the official code at this script with:
+#   export CV_PREINFER_BIN=/path/to/docker/cv-preinfer
+set -euo pipefail
+
+IMAGE=${CV_PREINFER_IMAGE:-mage-cvprep:0.2.5}
+
+mounts=()
+prev=""
+for arg in "$@"; do
+  case "$prev" in
+    --video|--out_dir)
+      dir=$(cd "$(dirname "$arg")" && pwd)
+      mounts+=(-v "$dir:$dir")
+      ;;
+  esac
+  prev="$arg"
+done
+
+exec docker run --rm --platform linux/arm64 \
+  --user "$(id -u):$(id -g)" \
+  "${mounts[@]}" \
+  "$IMAGE" "$@"

@@ -10,9 +10,8 @@ quantitative parity against the official PyTorch implementation.
 
 ## Status
 
-Stages 1, 2, and 3 pass in float32. Images, frame-sampled video, and the
-proactive streaming gate work end to end with torch-free preprocessing; the
-codec path is not implemented.
+All four stages pass in float32. Images, frame-sampled video, the proactive
+streaming gate, and the codec-native sparse video path work end to end.
 
 The staged verification plan, gates, and per-stage lab records live in
 [kiarina/labs](https://github.com/kiarina/labs/blob/main/docs/mage-vl-mlx-port.md).
@@ -23,7 +22,7 @@ The staged verification plan, gates, and per-stage lab records live in
 | 1 | Static image parity | passed in float32 |
 | 2 | Torch-free frame-sampled video | passed in float32 |
 | 3 | Proactive streaming gate | passed in float32 (see caveat) |
-| 4 | Codec-native sparse video | not started |
+| 4 | Codec-native sparse video | passed in float32 |
 
 ### Stage 1 results
 
@@ -127,3 +126,33 @@ the fixtures venv.
 
 MIT. Mage-VL itself is by Microsoft; the checkpoint is distributed under
 its own license on Hugging Face.
+
+### Stage 4 results
+
+`mage_vl_mlx.codec` consumes a codec asset directory (canvases +
+`src_patch_position.npy` + `meta.json`) with only NumPy and PIL. Against the
+official processor on three videos, the grid, **patch positions, and pixel
+values are bit-identical**, and greedy 64-token output matches in float32
+(logits cosine 1.000000).
+
+codec-video-prep ships Linux-only wheels, so `docker/cv-preinfer` forwards the
+binary into an ARM64 container. Point the official code at it and the codec
+path runs unchanged on macOS:
+
+```sh
+docker build --platform linux/arm64 -t mage-cvprep:0.2.5 -f docker/Dockerfile.cvprep docker/
+export CV_PREINFER_BIN=$PWD/docker/cv-preinfer
+```
+
+**Token efficiency.** Uniform frame sampling costs a flat 384 visual tokens per
+source frame it looks at, whatever the frame budget. The codec path covered 192
+of 193 source frames with 3,528 visual tokens — **18.4 tokens per covered
+frame**, a 95% reduction at equal temporal coverage. Against a fixed 32-frame
+uniform budget (12,288 tokens) it is a 71% reduction while seeing 6x more of the
+video. On short clips sampled at only 8 frames, the codec path uses *more*
+tokens (3,528 vs 3,072): the saving is in coverage per token, not absolute count.
+
+**The streaming gate needs this path.** With frame-sampled input the gate stays
+near zero on real events; with codec input it fires (soccer clip: 8 of 28
+canvases above threshold, max 0.81), consistently at the last canvas of each
+4-canvas group.
