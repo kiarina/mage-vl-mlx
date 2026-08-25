@@ -232,6 +232,23 @@ canvases above threshold, max 0.81), consistently at the last canvas of each
   PyTorch's MPS bf16→fp32 cast kernel. Generate float32 fixtures on CPU
   (~35 s per image); bfloat16 fixtures work on MPS (~6 s per image).
 
+## Repository layout
+
+Running the model needs none of the verification machinery — `src/` and the two
+inference scripts are torch-free.
+
+| Path | Needs | Purpose |
+|---|---|---|
+| `src/mage_vl_mlx/` | mlx, numpy, pillow, opencv, tokenizers, jinja2 | The port: vision tower, decoder, video and codec preprocessing, streaming gate, prompt building |
+| `inference_base.py`, `inference_streaming.py` | same | Run the model |
+| `scripts/convert_weights.py`, `convert_gate_weights.py` | same | Convert the checkpoint once, into `weights/` |
+| `scripts/benchmark.py`, `gate_stream.py`, `gate_timeline.py` | same | Measurement and inspection |
+| `scripts/generate_*_fixtures.py`, `check_codec_parity.py`, `debug_vision.py`, `reference_gate.py` | **`--group fixtures`** (torch, transformers) | Produce reference outputs from the official implementation and compare against them |
+| `docker/` | Docker | Runs the Linux-only cv-preinfer for the codec path |
+
+Install the verification dependencies only if you want to re-run the parity
+checks: `uv sync --group fixtures`.
+
 ## Reference pins
 
 - `microsoft/Mage` code: commit `76bec2bb3818863f470de7e867c2dc7f1d0bfd83`
@@ -248,7 +265,24 @@ transformers' static import check (the streaming gate is lazily imported
 and unused for images): run `python scripts/install_mamba_stub.py` inside
 the fixtures venv.
 
-## License
+## License and attribution
 
-MIT. Mage-VL itself is by Microsoft; the checkpoint is distributed under
-its own license on Hugging Face.
+This port is MIT (see `LICENSE`). It contains no upstream source and
+redistributes no model weights — everything here was written against the
+public implementations and papers listed below.
+
+| Upstream | License | How this repo relates to it |
+|---|---|---|
+| [microsoft/Mage](https://github.com/microsoft/Mage) | MIT | The architecture, preprocessing rules, and the CLI of `inference_base.py` / `inference_streaming.py` were reimplemented by reading `mage_vl/` at commit `76bec2bb3818863f470de7e867c2dc7f1d0bfd83`. |
+| [microsoft/Mage-VL](https://huggingface.co/microsoft/Mage-VL) checkpoint | Apache-2.0 | Not redistributed. `scripts/convert_weights.py` downloads it from Hugging Face and converts it locally; you accept the model's own terms there. |
+| [state-spaces/mamba](https://github.com/state-spaces/mamba) | Apache-2.0 | `scripts/reference_gate.py` reimplements the Mamba1 selective scan in plain PyTorch, following that project's published reference semantics (`selective_scan_ref` and the non-fast path of `mamba_simple.Mamba.forward`), because mamba-ssm has no macOS build. |
+| [huggingface/transformers](https://github.com/huggingface/transformers) | Apache-2.0 | The Qwen2-VL image preprocessing rules — smart_resize, the fused rescale/normalize order, and the patch layout — were matched against `Qwen2VLImageProcessor` so that preprocessing is bit-identical. |
+
+One caveat worth knowing before you depend on this: `codec-video-prep`, the
+package `docker/Dockerfile.cvprep` installs to run the codec path, **declares no
+license** in its PyPI metadata and publishes no source. It is Microsoft's own
+dependency for that path, but if licensing matters for your use, check it
+before shipping anything built on the codec backend. The image is built
+locally and is not published anywhere.
+
+Mage-VL is Microsoft's work; this repository only ports it to MLX.
