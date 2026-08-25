@@ -25,7 +25,23 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from mage_vl_mlx.model import MageVL  # noqa: E402
 from mage_vl_mlx.streaming import StreamMindGate  # noqa: E402
+from mage_vl_mlx.codec import preprocess_codec  # noqa: E402
 from mage_vl_mlx.video import preprocess_video  # noqa: E402
+
+
+def preprocess_codec_clip(clip: Path) -> dict:
+    """Run cv-preinfer on one subclip, then consume the asset directory.
+
+    Imports the checkpoint's own CodecConfig so the cache key matches what the
+    official processor would compute for the same clip.
+    """
+    from codec_video_processing_mage_vl import (  # type: ignore
+        CodecConfig, process_codec_video,
+    )
+
+    cfg = CodecConfig(patch=16, max_pixels=150000)
+    payload = process_codec_video(str(clip.resolve()), cfg)
+    return preprocess_codec(payload["out_dir"])
 
 
 def video_duration(path: Path) -> float:
@@ -57,6 +73,8 @@ def main():
                         help="per-segment frame cap (official default 16)")
     parser.add_argument("--cur-fps", type=float, default=2.0,
                         help="per-segment sampling fps (official default 2)")
+    parser.add_argument("--backend", default="frames", choices=("frames", "codec"),
+                        help="official inference_streaming.py defaults to codec")
     parser.add_argument("--threshold", type=float, default=0.5)
     parser.add_argument("--json-out", type=Path, default=None)
     args = parser.parse_args()
@@ -72,7 +90,10 @@ def main():
 
     duration = video_duration(args.video)
     spans, tokens = [], []
-    with tempfile.TemporaryDirectory() as tmp:
+    # Subclips go next to the source, not into the system temp: on macOS that
+    # lives under /var/folders, which Docker does not share, so the codec
+    # wrapper would bind-mount an empty directory and see no video.
+    with tempfile.TemporaryDirectory(dir=str(args.video.resolve().parent)) as tmp:
         start = 0.0
         while start < duration - 1e-3:
             end = min(duration, start + args.segment_sec)
@@ -80,15 +101,29 @@ def main():
                 args.video, start, end - start,
                 Path(tmp) / f"seg_{int(start * 1000):08d}.mp4",
             )
-            processed = preprocess_video(
-                str(clip), max_frames=args.num_frames, target_fps=args.cur_fps
-            )
+            # A trailing sliver of a segment can be too short to preprocess —
+            # the codec pipeline needs enough frames to form a group. The
+            # official script skips such segments, so do the same.
+            try:
+                if args.backend == "codec":
+                    processed = preprocess_codec_clip(clip)
+                    units = processed["canvas_count"]
+                else:
+                    processed = preprocess_video(
+                        str(clip), max_frames=args.num_frames, target_fps=args.cur_fps
+                    )
+                    units = len(processed["frame_indices"])
+            except Exception as error:
+                print(f"  [t={start:5.2f}-{end:5.2f}s] skip (unusable: "
+                      f"{type(error).__name__})")
+                start = end
+                continue
             tokens.append(model.vision_tokens(
                 mx.array(processed["pixel_values"]).astype(dtype),
                 mx.array(processed["grid_thw"].astype(np.int32)),
                 mx.array(processed["patch_positions"].astype(np.int32)),
             ))
-            spans.append((start, end, len(processed["frame_indices"])))
+            spans.append((start, end, units))
             start = end
 
     lengths = [t.shape[1] for t in tokens]
