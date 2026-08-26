@@ -71,6 +71,7 @@ class SegmentMetrics:
     preprocess_s: float
     vision_s: float
     gate_s: float
+    first_text_s: float | None
     first_token_s: float | None
     generation_s: float | None
     total_s: float
@@ -226,6 +227,7 @@ class RealtimeSession:
 
         tokens: list[int] = []
         text = ""
+        first_text_s = None
         first_token_s = None
         generation_s = None
         tokens_per_s = None
@@ -254,6 +256,7 @@ class RealtimeSession:
                 elapsed = time.perf_counter() - generation_start
                 if first_token_s is None:
                     first_token_s = elapsed
+                    first_text_s = time.perf_counter() - pipeline_start
                 tokens.append(token)
                 text = self.prompt_builder.decode(tokens).strip()
                 if on_token is not None:
@@ -267,6 +270,7 @@ class RealtimeSession:
             preprocess_s=preprocess_s,
             vision_s=vision_s,
             gate_s=gate_s,
+            first_text_s=first_text_s,
             first_token_s=first_token_s,
             generation_s=generation_s,
             total_s=total_s,

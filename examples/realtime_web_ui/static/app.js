@@ -200,9 +200,12 @@ function handleMessage(message) {
 function renderResult(message) {
   const result = message.result;
   const metrics = result.metrics;
+  const firstText = metrics.first_text_s == null ? null
+    : message.backlog_s + message.prepare_s + metrics.first_text_s;
+  const fullResponse = message.backlog_s + message.prepare_s + metrics.total_s;
   elements.gateMetric.textContent = result.probability.toFixed(3);
-  elements.firstMetric.textContent = metrics.first_token_s == null ? "SKIP" : `${metrics.first_token_s.toFixed(2)}s`;
-  elements.fullMetric.textContent = metrics.generation_s == null ? "SKIP" : `${metrics.generation_s.toFixed(2)}s`;
+  elements.firstMetric.textContent = firstText == null ? "SKIP" : `${firstText.toFixed(2)}s`;
+  elements.fullMetric.textContent = metrics.generation_s == null ? "SKIP" : `${fullResponse.toFixed(2)}s`;
   elements.lagMetric.textContent = `${message.lag_s.toFixed(2)}s`;
   elements.lagNote.textContent = message.lag_s < 0.1 ? "caught up" : "behind live edge";
   elements.segmentState.textContent = result.responded ? "RESPONDED" : "SILENT";

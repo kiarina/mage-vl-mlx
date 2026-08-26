@@ -37,8 +37,9 @@ described; raise it to use StreamMind as a pre-filter.
 ## Real-time semantics
 
 A result can only begin after its input segment has completed. The displayed
-first-text metric starts at that segment boundary, while stream lag reports how
-far processing has fallen behind the live edge.
+first-text metric starts at that segment boundary and includes queued backlog,
+segment preparation, vision, gate, and generation prefill. Stream lag reports
+how far processing has fallen behind the live edge.
 
 Container timestamps often leave a few hundredths of a second after the final
 full segment. A trailing remainder shorter than 0.5 seconds is ignored instead

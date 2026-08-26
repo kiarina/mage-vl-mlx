@@ -97,18 +97,12 @@ def main() -> None:
                 segment_work_fits.append(work_s <= end_s - start_s)
                 worker_free_s = max(worker_free_s, end_s) + work_s
                 processing_s += work_s
-                before_generation_s = (
-                    prepare_s
-                    + result.metrics.preprocess_s
-                    + result.metrics.vision_s
-                    + result.metrics.gate_s
-                )
                 first_text_s = None
-                if result.metrics.first_token_s is not None:
+                if result.metrics.first_text_s is not None:
                     first_text_s = (
                         backlog_before_s
-                        + before_generation_s
-                        + result.metrics.first_token_s
+                        + prepare_s
+                        + result.metrics.first_text_s
                     )
                 segments.append({
                     "index": segment_index,
