@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mage-VL Live Vision</title>
+  <meta name="description" content="Local real-time video understanding on Apple Silicon.">
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+  <div class="ambient ambient-one"></div>
+  <div class="ambient ambient-two"></div>
+  <main class="shell">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark"><span></span></div>
+        <div>
+          <p class="eyebrow">MAGE-VL · MLX</p>
+          <h1>Live Vision</h1>
+        </div>
+      </div>
+      <div class="system-state">
+        <span id="connectionDot" class="state-dot"></span>
+        <div>
+          <span class="state-label">LOCAL ENGINE</span>
+          <strong id="systemStatus">Connecting</strong>
+        </div>
+      </div>
+    </header>
+
+    <section class="workspace">
+      <div class="viewer-card panel">
+        <div class="viewer-toolbar">
+          <div class="source-tabs" role="tablist" aria-label="Video source">
+            <button id="fileTab" class="tab active" type="button">Video file</button>
+            <button id="cameraTab" class="tab" type="button">Camera</button>
+          </div>
+          <div class="live-chip"><span></span><b id="liveLabel">READY</b></div>
+        </div>
+
+        <div class="video-stage">
+          <video id="fileVideo" playsinline controls></video>
+          <video id="cameraVideo" playsinline muted></video>
+          <div id="emptyStage" class="empty-stage">
+            <div class="scan-orbit"><i></i></div>
+            <p>Choose a video or connect a camera</p>
+            <span>All media stays on this Mac.</span>
+          </div>
+          <div class="stage-overlay">
+            <div class="timecode">
+              <span>STREAM</span>
+              <b id="timecode">00:00.0</b>
+            </div>
+            <div class="segment-badge">
+              <span id="segmentState">IDLE</span>
+              <b id="segmentNumber">SEG —</b>
+            </div>
+          </div>
+          <div class="scan-line"></div>
+        </div>
+
+        <div class="live-output">
+          <div class="output-heading">
+            <span class="pulse-icon"></span>
+            <p>LIVE RESPONSE</p>
+            <span id="tokenCounter">0 TOKENS</span>
+          </div>
+          <p id="liveText" class="live-text">Waiting for the first completed segment…</p>
+        </div>
+      </div>
+
+      <aside class="control-card panel">
+        <div class="section-heading">
+          <p class="eyebrow">SESSION</p>
+          <h2>Ask the stream</h2>
+        </div>
+
+        <div id="fileControls" class="source-control">
+          <label class="upload-zone" for="videoInput">
+            <input id="videoInput" type="file" accept="video/*">
+            <span class="upload-symbol">＋</span>
+            <span><b id="uploadTitle">Select a video</b><small id="uploadDetail">MP4, MOV, WebM or AVI</small></span>
+          </label>
+        </div>
+
+        <div id="cameraControls" class="source-control hidden">
+          <button id="enableCamera" class="secondary-button" type="button">Enable camera preview</button>
+          <select id="cameraDevice" aria-label="Camera device"><option value="">Default camera</option></select>
+        </div>
+
+        <label class="field-label" for="question">QUESTION</label>
+        <textarea id="question" rows="4">Describe what is happening. Focus on changes and motion.</textarea>
+
+        <div class="setting-grid">
+          <label>Backend
+            <select id="backend">
+              <option value="frames">Frames · live</option>
+              <option value="codec">Codec · container</option>
+            </select>
+          </label>
+          <label>Segment
+            <select id="segmentSeconds">
+              <option value="1">1 second</option>
+              <option value="2">2 seconds</option>
+              <option value="4" selected>4 seconds</option>
+              <option value="8">8 seconds</option>
+            </select>
+          </label>
+          <label>Capture rate
+            <select id="targetFps">
+              <option value="1">1 fps</option>
+              <option value="2" selected>2 fps</option>
+              <option value="4">4 fps</option>
+            </select>
+          </label>
+          <label>Max output
+            <select id="maxTokens">
+              <option value="32">32 tokens</option>
+              <option value="64" selected>64 tokens</option>
+              <option value="80">80 tokens</option>
+              <option value="128">128 tokens</option>
+            </select>
+          </label>
+        </div>
+
+        <label class="threshold-label" for="gateThreshold">
+          <span>Gate threshold</span><b id="thresholdValue">0.00</b>
+        </label>
+        <input id="gateThreshold" type="range" min="0" max="1" step="0.05" value="0">
+        <p class="field-note">0 describes every segment. Raise it to use StreamMind as a pre-filter.</p>
+
+        <div class="actions">
+          <button id="startButton" class="primary-button" type="button"><span></span>Start live analysis</button>
+          <button id="stopButton" class="stop-button" type="button" disabled>Stop</button>
+        </div>
+      </aside>
+    </section>
+
+    <section class="metrics-grid" aria-label="Live metrics">
+      <article class="metric panel"><span>GATE SCORE</span><strong id="gateMetric">—</strong><small>p(speak)</small></article>
+      <article class="metric panel"><span>FIRST TEXT</span><strong id="firstMetric">—</strong><small>after segment end</small></article>
+      <article class="metric panel"><span>FULL RESPONSE</span><strong id="fullMetric">—</strong><small>after segment end</small></article>
+      <article class="metric panel"><span>STREAM LAG</span><strong id="lagMetric">—</strong><small id="lagNote">no backlog</small></article>
+    </section>
+
+    <section class="timeline panel">
+      <div class="timeline-header">
+        <div><p class="eyebrow">OBSERVATIONS</p><h2>Segment timeline</h2></div>
+        <button id="clearButton" class="text-button" type="button">Clear</button>
+      </div>
+      <div id="timelineEntries" class="timeline-entries">
+        <div class="timeline-empty">Responses will appear here as the stream advances.</div>
+      </div>
+    </section>
+
+    <footer><span>Runs locally on Apple Silicon</span><span>Video and camera data never leave this machine</span></footer>
+  </main>
+  <canvas id="cameraCanvas" hidden></canvas>
+  <script src="/static/app.js"></script>
+</body>
+</html>

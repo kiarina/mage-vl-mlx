@@ -16,7 +16,6 @@ CV_PREINFER_BIN at docker/cv-preinfer to run it through a container.
 """
 
 import argparse
-import subprocess
 import sys
 import tempfile
 from pathlib import Path
@@ -28,29 +27,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parent / "src"))
 
 from mage_vl_mlx.model import MageVL  # noqa: E402
 from mage_vl_mlx.prompt import PromptBuilder  # noqa: E402
+from mage_vl_mlx.realtime import extract_subclip, video_duration  # noqa: E402
 from mage_vl_mlx.streaming import StreamMindGate  # noqa: E402
 
 EOS_TOKEN_ID = 151645
 USER_PROMPT = "Please describe the video content in detail based on the provided information."
-
-
-def video_duration(path: Path) -> float:
-    out = subprocess.run(
-        ["ffprobe", "-v", "error", "-show_entries", "format=duration",
-         "-of", "default=noprint_wrappers=1:nokey=1", str(path)],
-        capture_output=True, text=True, check=True)
-    return float(out.stdout.strip())
-
-
-def extract_subclip(src: Path, start: float, duration: float, out_path: Path) -> Path:
-    # The official script cuts with `-c copy`, which snaps to keyframes; that
-    # cannot cut short segments from sparsely-keyframed video, so re-encode.
-    subprocess.run(
-        ["ffmpeg", "-y", "-loglevel", "error", "-ss", f"{start:.3f}",
-         "-t", f"{duration:.3f}", "-i", str(src),
-         "-c:v", "libx264", "-pix_fmt", "yuv420p", "-an", str(out_path)],
-        check=True)
-    return out_path
 
 
 def preprocess_segment(clip: Path, backend: str, num_frames: int, cur_fps: float):

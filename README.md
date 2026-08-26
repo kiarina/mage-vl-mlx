@@ -73,6 +73,39 @@ decision per segment. It works down to 1s with either backend. A trailing
 segment shorter than a codec group cannot be preprocessed and is skipped, the
 way the official script skips unusable segments.
 
+### Real-time API and local Web UI
+
+`mage_vl_mlx.realtime.RealtimeSession` accepts one completed segment at a time,
+streams generated tokens through a callback, and reports preprocessing,
+vision, gate, first-token, full-generation, and peak-memory measurements. The
+model can stay in bfloat16 while the threshold-sensitive gate runs in float32.
+
+The reference Web UI plays a video at normal speed or captures the Mac camera,
+then shows the generated text, gate score, latency, and backlog beside the live
+image. It binds to localhost and sends no media to an external service.
+
+```sh
+uv sync --group webui
+uv run --group webui python examples/realtime_web_ui/app.py
+# open http://127.0.0.1:8000
+```
+
+File mode supports the frames and codec backends. Camera mode currently uses
+sampled frames. See [`examples/realtime_web_ui`](examples/realtime_web_ui) for
+the controls, privacy boundary, and real-time semantics.
+
+Measure processing-only real-time factor and simulated backlog without the UI:
+
+```sh
+uv run python scripts/benchmark_realtime.py \
+  --video clip.mp4 --segment-sec 4 --gate-threshold 0
+```
+
+The gate currently replays all accumulated visual history for every segment.
+This matches the official whole-stream result, but it is not yet a stateful
+incremental Mamba implementation. The long-stream cost is therefore reported
+as a measured limitation rather than hidden by a rolling window.
+
 ### Using this for event detection
 
 The gate is not an event detector. It separates content types — a sports
@@ -244,6 +277,8 @@ canvases above threshold, max 0.81), consistently at the last canvas of each
   default system turn. The CLI deliberately exposes no `--system` flag. Steer
   through `--question` instead, which does change the output.
 - No quantization: bfloat16 only, so this is slower than an 8-bit checkpoint.
+- The real-time gate replays accumulated visual history instead of carrying
+  Mamba state incrementally; backlog can grow on long streams.
 - No test suite; verification runs through `scripts/check_*.py` by hand.
 - `scripts/generate_fixtures.py --dtype float32 --devices mps` hangs in
   PyTorch's MPS bf16→fp32 cast kernel. Generate float32 fixtures on CPU
@@ -256,10 +291,11 @@ inference scripts are torch-free.
 
 | Path | Needs | Purpose |
 |---|---|---|
-| `src/mage_vl_mlx/` | mlx, numpy, pillow, opencv, tokenizers, jinja2 | The port: vision tower, decoder, video and codec preprocessing, streaming gate, prompt building |
+| `src/mage_vl_mlx/` | mlx, numpy, pillow, opencv, tokenizers, jinja2 | The port: vision tower, decoder, video and codec preprocessing, streaming gate, prompt building, real-time session API |
 | `inference_base.py`, `inference_streaming.py` | same | Run the model |
+| `examples/realtime_web_ui/` | **`--group webui`** | Local video-file and camera reference UI |
 | `scripts/convert_weights.py`, `convert_gate_weights.py` | same | Convert the checkpoint once, into `weights/` |
-| `scripts/benchmark.py`, `gate_stream.py`, `gate_timeline.py` | same | Measurement and inspection |
+| `scripts/benchmark.py`, `benchmark_realtime.py`, `gate_stream.py`, `gate_timeline.py` | same | Measurement and inspection |
 | `scripts/generate_*_fixtures.py`, `check_codec_parity.py`, `debug_vision.py`, `reference_gate.py` | **`--group fixtures`** (torch, transformers) | Produce reference outputs from the official implementation and compare against them |
 | `docker/` | Docker | Runs the Linux-only cv-preinfer for the codec path |
 

@@ -15,6 +15,11 @@ dependencies = [
 ]
 
 [dependency-groups]
+webui = [
+    "fastapi>=0.116",
+    "python-multipart>=0.0.20",
+    "uvicorn[standard]>=0.35",
+]
 fixtures = [
     "torch==2.13.0",
     "torchvision==0.28.0",

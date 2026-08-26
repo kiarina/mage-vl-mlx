@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterator
 from pathlib import Path
 
 import mlx.core as mx
@@ -102,16 +103,33 @@ class MageVL(nn.Module):
         eos_token_id: int | None = None,
     ) -> list[int]:
         """Greedy decoding. Returns the generated token ids."""
+        return list(self.generate_stream(
+            input_ids,
+            pixel_values,
+            grid_thw,
+            patch_positions,
+            max_new_tokens=max_new_tokens,
+            eos_token_id=eos_token_id,
+        ))
+
+    def generate_stream(
+        self,
+        input_ids: mx.array,
+        pixel_values: mx.array | None = None,
+        grid_thw: mx.array | None = None,
+        patch_positions: mx.array | None = None,
+        max_new_tokens: int = 64,
+        eos_token_id: int | None = None,
+    ) -> Iterator[int]:
+        """Greedy decoding that yields each token as soon as it is ready."""
         cache = [KVCache() for _ in self.language.layers]
         embeds = self.embed(input_ids, pixel_values, grid_thw, patch_positions)
 
         logits = self(embeds, cache)[:, -1]
-        tokens: list[int] = []
         for _ in range(max_new_tokens):
             token = int(mx.argmax(logits, axis=-1).item())
-            tokens.append(token)
+            yield token
             if eos_token_id is not None and token == eos_token_id:
                 break
             next_embed = self.language.embed_tokens(mx.array([[token]]))
             logits = self(next_embed, cache)[:, -1]
-        return tokens
