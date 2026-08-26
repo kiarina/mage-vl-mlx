@@ -40,6 +40,10 @@ A result can only begin after its input segment has completed. The displayed
 first-text metric starts at that segment boundary, while stream lag reports how
 far processing has fallen behind the live edge.
 
+Container timestamps often leave a few hundredths of a second after the final
+full segment. A trailing remainder shorter than 0.5 seconds is ignored instead
+of being presented as a meaningful observation.
+
 For parity with the official whole-stream behavior, the gate currently replays
 the accumulated visual history for each segment. It does not yet carry Mamba
 state incrementally. Long-stream backlog and the cost of this replay are

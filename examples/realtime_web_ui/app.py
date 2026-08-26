@@ -207,6 +207,8 @@ async def websocket_endpoint(websocket: WebSocket):
             with tempfile.TemporaryDirectory(dir=source.parent) as directory:
                 start_s = 0.0
                 while start_s < duration - 1e-3 and not stop.is_set():
+                    if start_s > 0 and duration - start_s < 0.5:
+                        break
                     end_s = min(duration, start_s + settings["segment_s"])
                     wait_s = baseline + end_s - time.perf_counter()
                     if wait_s > 0 and stop.wait(wait_s):

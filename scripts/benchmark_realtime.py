@@ -35,6 +35,8 @@ def main() -> None:
     parser.add_argument("--model-dtype", choices=("bfloat16", "float32"), default="bfloat16")
     parser.add_argument("--gate-dtype", choices=("bfloat16", "float32"), default="float32")
     parser.add_argument("--runs", type=int, default=3)
+    parser.add_argument("--min-tail-sec", type=float, default=0.5,
+                        help="ignore a final container-duration sliver shorter than this")
     parser.add_argument("--output", type=Path)
     args = parser.parse_args()
     if args.segment_sec <= 0:
@@ -76,6 +78,8 @@ def main() -> None:
             start_s = 0.0
             segment_index = 0
             while start_s < duration - 1e-3:
+                if start_s > 0 and duration - start_s < args.min_tail_sec:
+                    break
                 end_s = min(duration, start_s + args.segment_sec)
                 segment_index += 1
                 clip = Path(directory) / f"segment-{segment_index:04d}.mp4"
@@ -144,6 +148,7 @@ def main() -> None:
         "model_dtype": args.model_dtype,
         "gate_dtype": args.gate_dtype,
         "question": args.question,
+        "min_tail_sec": args.min_tail_sec,
         "model_load_s": load_s,
         "peak_memory_gb": mx.get_peak_memory() / 1024**3,
         "runs": runs,

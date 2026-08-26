@@ -105,6 +105,8 @@ The gate currently replays all accumulated visual history for every segment.
 This matches the official whole-stream result, but it is not yet a stateful
 incremental Mamba implementation. The long-stream cost is therefore reported
 as a measured limitation rather than hidden by a rolling window.
+Final container-duration slivers shorter than 0.5 seconds are ignored by the
+benchmark and Web UI rather than treated as standalone observations.
 
 ### Using this for event detection
 
