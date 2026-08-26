@@ -88,8 +88,40 @@
           <select id="cameraDevice" aria-label="Camera device"><option value="">Default camera</option></select>
         </div>
 
+        <div class="mode-row">
+          <label>Analysis mode
+            <select id="analysisMode">
+              <option value="describe">Describe every response</option>
+              <option value="event">Event filter</option>
+            </select>
+          </label>
+          <button id="soccerPreset" class="preset-button" type="button">⚽ Goal preset</button>
+        </div>
+
         <label class="field-label" for="question">QUESTION</label>
         <textarea id="question" rows="4">Describe what is happening. Focus on changes and motion.</textarea>
+
+        <div id="eventControls" class="event-controls hidden">
+          <div class="event-heading">
+            <div><span>EVENT FILTER</span><strong>Show only matching labels</strong></div>
+            <span class="filter-chip">BUFFERED</span>
+          </div>
+          <div class="setting-grid compact-grid">
+            <label>Trigger label
+              <input id="triggerLabel" type="text" value="goal" autocomplete="off" spellcheck="false">
+            </label>
+            <label>Ignore label
+              <input id="ignoreLabel" type="text" value="none" autocomplete="off" spellcheck="false">
+            </label>
+            <label>Cooldown
+              <input id="cooldownSeconds" type="number" min="0" max="120" step="1" value="8">
+            </label>
+            <label class="check-field">Ignored results
+              <span><input id="showIgnored" type="checkbox"> Show in timeline</span>
+            </label>
+          </div>
+          <p class="field-note">Responses are held until complete, then ignored unless the first label matches.</p>
+        </div>
 
         <div class="setting-grid">
           <label>Backend
@@ -98,23 +130,46 @@
               <option value="codec">Codec · container</option>
             </select>
           </label>
-          <label>Segment
+          <label>Decision stride
             <select id="segmentSeconds">
+              <option value="0.5">0.5 second</option>
               <option value="1">1 second</option>
               <option value="2">2 seconds</option>
               <option value="4" selected>4 seconds</option>
               <option value="8">8 seconds</option>
             </select>
           </label>
+          <label>Context window
+            <select id="windowSeconds">
+              <option value="1">1 second</option>
+              <option value="2">2 seconds</option>
+              <option value="3">3 seconds</option>
+              <option value="4" selected>4 seconds</option>
+              <option value="6">6 seconds</option>
+              <option value="8">8 seconds</option>
+              <option value="12">12 seconds</option>
+              <option value="16">16 seconds</option>
+            </select>
+          </label>
           <label>Capture rate
             <select id="targetFps">
+              <option value="0.5">0.5 fps</option>
               <option value="1">1 fps</option>
               <option value="2" selected>2 fps</option>
               <option value="4">4 fps</option>
+              <option value="8">8 fps</option>
             </select>
+          </label>
+          <label>Max frames
+            <input id="numFrames" type="number" min="1" max="64" step="1" value="16">
           </label>
           <label>Max output
             <select id="maxTokens">
+              <option value="1">1 token</option>
+              <option value="2">2 tokens</option>
+              <option value="4">4 tokens</option>
+              <option value="8">8 tokens</option>
+              <option value="16">16 tokens</option>
               <option value="32">32 tokens</option>
               <option value="64" selected>64 tokens</option>
               <option value="80">80 tokens</option>
@@ -126,7 +181,7 @@
         <label class="threshold-label" for="gateThreshold">
           <span>Gate threshold</span><b id="thresholdValue">0.00</b>
         </label>
-        <input id="gateThreshold" type="range" min="0" max="1" step="0.05" value="0">
+        <input id="gateThreshold" type="range" min="0" max="1" step="0.01" value="0">
         <p class="field-note">0 describes every segment. Raise it to use StreamMind as a pre-filter.</p>
 
         <div class="actions">

@@ -82,7 +82,11 @@ model can stay in bfloat16 while the threshold-sensitive gate runs in float32.
 
 The reference Web UI plays a video at normal speed or captures the Mac camera,
 then shows the generated text, gate score, latency, and backlog beside the live
-image. It binds to localhost and sends no media to an external service.
+image. It also has a configurable event-filter mode that buffers terse labels,
+suppresses ignored results, and applies a cooldown to repeated detections. A
+soccer goal preset exposes the full stride, context-window, gate, label, and
+generation configuration from the UI. It binds to localhost and sends no media
+to an external service.
 
 ```sh
 uv sync --group webui

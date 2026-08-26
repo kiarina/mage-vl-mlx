@@ -4,11 +4,13 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+from collections import deque
 from contextlib import asynccontextmanager
 import json
 import os
 from pathlib import Path
 import queue
+import re
 import shutil
 import tempfile
 import threading
@@ -85,14 +87,66 @@ def settings_from(message: dict) -> dict:
     backend = str(message.get("backend", "frames"))
     if backend not in {"frames", "codec"}:
         raise ValueError("backend must be frames or codec")
+    analysis_mode = str(message.get("analysis_mode", "describe"))
+    if analysis_mode not in {"describe", "event"}:
+        raise ValueError("analysis_mode must be describe or event")
+    segment_s = min(8.0, max(0.5, float(message.get("segment_s", 4.0))))
+    window_s = min(16.0, max(segment_s, float(message.get("window_s", segment_s))))
     return {
         "backend": backend,
+        "analysis_mode": analysis_mode,
         "question": str(message.get("question") or "Describe what is happening."),
-        "segment_s": min(8.0, max(1.0, float(message.get("segment_s", 4.0)))),
+        "segment_s": segment_s,
+        "window_s": window_s,
         "target_fps": min(8.0, max(0.5, float(message.get("target_fps", 2.0)))),
         "num_frames": min(64, max(1, int(message.get("num_frames", 16)))),
         "gate_threshold": min(1.0, max(0.0, float(message.get("gate_threshold", 0.0)))),
         "max_new_tokens": min(256, max(1, int(message.get("max_new_tokens", 80)))),
+        "trigger_label": str(message.get("trigger_label") or "goal").strip().lower(),
+        "ignore_label": str(message.get("ignore_label") or "none").strip().lower(),
+        "cooldown_s": min(120.0, max(0.0, float(message.get("cooldown_s", 8.0)))),
+        "show_ignored": bool(message.get("show_ignored", False)),
+    }
+
+
+def normalized_label(text: str) -> str:
+    """Return a robust first label from a terse classifier response."""
+    labels = re.findall(r"[\w-]+", text.lower(), flags=re.UNICODE)
+    return labels[0] if labels else ""
+
+
+def result_decision(
+    result: dict,
+    settings: dict,
+    *,
+    end_s: float,
+    last_event_s: float | None,
+) -> dict:
+    """Apply UI response filtering without changing the model or gate result."""
+    if not result["responded"]:
+        return {"accepted": False, "visible": settings["show_ignored"],
+                "label": "", "reason": "gate"}
+    if settings["analysis_mode"] == "describe":
+        return {"accepted": True, "visible": True, "label": "", "reason": "description"}
+
+    label = normalized_label(result["text"])
+    if label == settings["ignore_label"]:
+        reason = "ignored-label"
+        accepted = False
+    elif label != settings["trigger_label"]:
+        reason = "unmatched-label"
+        accepted = False
+    elif last_event_s is not None and end_s - last_event_s < settings["cooldown_s"]:
+        reason = "cooldown"
+        accepted = False
+    else:
+        reason = "event"
+        accepted = True
+    return {
+        "accepted": accepted,
+        "visible": accepted or settings["show_ignored"],
+        "label": label,
+        "reason": reason,
     }
 
 
@@ -204,12 +258,15 @@ async def websocket_endpoint(websocket: WebSocket):
             duration = video_duration(source)
             baseline = time.perf_counter()
             segment_index = 0
+            last_event_s: float | None = None
             with tempfile.TemporaryDirectory(dir=source.parent) as directory:
-                start_s = 0.0
-                while start_s < duration - 1e-3 and not stop.is_set():
-                    if start_s > 0 and duration - start_s < 0.5:
+                previous_boundary_s = 0.0
+                boundary_s = settings["segment_s"]
+                while previous_boundary_s < duration - 1e-3 and not stop.is_set():
+                    end_s = min(duration, boundary_s)
+                    if previous_boundary_s > 0 and end_s - previous_boundary_s < 0.5:
                         break
-                    end_s = min(duration, start_s + settings["segment_s"])
+                    start_s = max(0.0, end_s - settings["window_s"])
                     wait_s = baseline + end_s - time.perf_counter()
                     if wait_s > 0 and stop.wait(wait_s):
                         break
@@ -229,12 +286,20 @@ async def websocket_endpoint(websocket: WebSocket):
                     try:
                         extract_subclip(source, start_s, end_s - start_s, clip)
                         prepare_s = time.perf_counter() - prepare_start
+                        if settings["window_s"] > settings["segment_s"]:
+                            # Overlapping windows must not duplicate their shared frames
+                            # in the causal gate history. Evaluate each rolling window alone.
+                            session.reset()
                         result = session.process_segment(
                             clip,
                             settings["question"],
                             start_s=start_s,
                             end_s=end_s,
-                            on_token=token_callback(segment_index),
+                            on_token=(
+                                token_callback(segment_index)
+                                if settings["analysis_mode"] == "describe"
+                                else None
+                            ),
                         )
                     except Exception as error:
                         emit(
@@ -243,18 +308,30 @@ async def websocket_endpoint(websocket: WebSocket):
                             segment=segment_index,
                             message=f"{type(error).__name__}: {error}",
                         )
-                        start_s = end_s
+                        previous_boundary_s = end_s
+                        boundary_s += settings["segment_s"]
                         continue
                     lag_s = max(0.0, time.perf_counter() - ready_at)
+                    rendered = result.to_dict()
+                    decision = result_decision(
+                        rendered,
+                        settings,
+                        end_s=end_s,
+                        last_event_s=last_event_s,
+                    )
+                    if decision["accepted"]:
+                        last_event_s = end_s
                     emit(
                         "result",
                         segment=segment_index,
-                        result=result.to_dict(),
+                        result=rendered,
+                        decision=decision,
                         prepare_s=prepare_s,
                         backlog_s=backlog_at_start,
                         lag_s=lag_s,
                     )
-                    start_s = end_s
+                    previous_boundary_s = end_s
+                    boundary_s += settings["segment_s"]
             emit("stream", state="stopped" if stop.is_set() else "complete")
 
     def process_camera(frame_queue: queue.Queue[bytes], settings: dict) -> None:
@@ -262,26 +339,35 @@ async def websocket_endpoint(websocket: WebSocket):
             emit("model", state="loading")
             session = engine.create_session(settings)
             emit("model", state="ready")
-            frames_per_segment = max(
+            frames_per_stride = max(
                 1, round(settings["segment_s"] * settings["target_fps"])
             )
+            frames_per_window = max(
+                frames_per_stride,
+                round(settings["window_s"] * settings["target_fps"]),
+            )
             segment_index = 0
-            start_s = 0.0
-            captured: list[bytes] = []
+            end_s = 0.0
+            frames_since_segment = 0
+            captured: deque[bytes] = deque(maxlen=frames_per_window)
+            last_event_s: float | None = None
             with tempfile.TemporaryDirectory() as directory:
                 while not stop.is_set():
                     try:
                         captured.append(frame_queue.get(timeout=0.25))
+                        frames_since_segment += 1
                     except queue.Empty:
                         continue
-                    if len(captured) < frames_per_segment:
+                    if frames_since_segment < frames_per_stride:
                         continue
+                    frames_since_segment = 0
                     segment_index += 1
-                    end_s = start_s + settings["segment_s"]
+                    end_s += settings["segment_s"]
+                    start_s = max(0.0, end_s - len(captured) / settings["target_fps"])
                     clip = Path(directory) / f"camera-{segment_index:04d}.mp4"
                     prepare_start = time.perf_counter()
                     try:
-                        camera_clip(captured, settings["target_fps"], clip)
+                        camera_clip(list(captured), settings["target_fps"], clip)
                         prepare_s = time.perf_counter() - prepare_start
                         backlog = frame_queue.qsize() / settings["target_fps"]
                         emit(
@@ -292,17 +378,33 @@ async def websocket_endpoint(websocket: WebSocket):
                             end_s=end_s,
                             backlog_s=backlog,
                         )
+                        if settings["window_s"] > settings["segment_s"]:
+                            session.reset()
                         result = session.process_segment(
                             clip,
                             settings["question"],
                             start_s=start_s,
                             end_s=end_s,
-                            on_token=token_callback(segment_index),
+                            on_token=(
+                                token_callback(segment_index)
+                                if settings["analysis_mode"] == "describe"
+                                else None
+                            ),
                         )
+                        rendered = result.to_dict()
+                        decision = result_decision(
+                            rendered,
+                            settings,
+                            end_s=end_s,
+                            last_event_s=last_event_s,
+                        )
+                        if decision["accepted"]:
+                            last_event_s = end_s
                         emit(
                             "result",
                             segment=segment_index,
-                            result=result.to_dict(),
+                            result=rendered,
+                            decision=decision,
                             prepare_s=prepare_s,
                             backlog_s=backlog,
                             lag_s=frame_queue.qsize() / settings["target_fps"],
@@ -314,8 +416,6 @@ async def websocket_endpoint(websocket: WebSocket):
                             segment=segment_index,
                             message=f"{type(error).__name__}: {error}",
                         )
-                    captured = []
-                    start_s = end_s
             emit("stream", state="stopped")
 
     async def stop_worker() -> None:

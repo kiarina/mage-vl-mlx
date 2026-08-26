@@ -7,8 +7,11 @@ const elements = {
   fileVideo: $("fileVideo"), cameraVideo: $("cameraVideo"), emptyStage: $("emptyStage"),
   videoInput: $("videoInput"), uploadTitle: $("uploadTitle"), uploadDetail: $("uploadDetail"),
   enableCamera: $("enableCamera"), cameraDevice: $("cameraDevice"), cameraCanvas: $("cameraCanvas"),
-  question: $("question"), backend: $("backend"), segmentSeconds: $("segmentSeconds"),
-  targetFps: $("targetFps"), maxTokens: $("maxTokens"), gateThreshold: $("gateThreshold"),
+  analysisMode: $("analysisMode"), eventControls: $("eventControls"), soccerPreset: $("soccerPreset"),
+  question: $("question"), triggerLabel: $("triggerLabel"), ignoreLabel: $("ignoreLabel"),
+  cooldownSeconds: $("cooldownSeconds"), showIgnored: $("showIgnored"),
+  backend: $("backend"), segmentSeconds: $("segmentSeconds"), windowSeconds: $("windowSeconds"),
+  targetFps: $("targetFps"), numFrames: $("numFrames"), maxTokens: $("maxTokens"), gateThreshold: $("gateThreshold"),
   thresholdValue: $("thresholdValue"), startButton: $("startButton"), stopButton: $("stopButton"),
   liveLabel: $("liveLabel"), liveText: $("liveText"), tokenCounter: $("tokenCounter"),
   timecode: $("timecode"), segmentState: $("segmentState"), segmentNumber: $("segmentNumber"),
@@ -64,14 +67,53 @@ function showSource() {
 function settings(action) {
   return {
     action,
+    analysis_mode: elements.analysisMode.value,
     question: elements.question.value.trim(),
     backend: elements.backend.value,
     segment_s: Number(elements.segmentSeconds.value),
+    window_s: Number(elements.windowSeconds.value),
     target_fps: Number(elements.targetFps.value),
-    num_frames: Math.max(8, Number(elements.segmentSeconds.value) * Number(elements.targetFps.value)),
+    num_frames: Number(elements.numFrames.value),
     gate_threshold: Number(elements.gateThreshold.value),
     max_new_tokens: Number(elements.maxTokens.value),
+    trigger_label: elements.triggerLabel.value.trim(),
+    ignore_label: elements.ignoreLabel.value.trim(),
+    cooldown_s: Number(elements.cooldownSeconds.value),
+    show_ignored: elements.showIgnored.checked,
   };
+}
+
+function setAnalysisMode() {
+  const eventMode = elements.analysisMode.value === "event";
+  elements.eventControls.classList.toggle("hidden", !eventMode);
+}
+
+function keepWindowAtLeastStride() {
+  const stride = Number(elements.segmentSeconds.value);
+  const window = Number(elements.windowSeconds.value);
+  if (window >= stride) return;
+  const replacement = [...elements.windowSeconds.options]
+    .map((option) => Number(option.value))
+    .find((value) => value >= stride);
+  elements.windowSeconds.value = String(replacement || stride);
+}
+
+function applySoccerPreset() {
+  if (running) return;
+  elements.analysisMode.value = "event";
+  elements.question.value = "Classify whether this video window contains the moment a goal is scored in a soccer match. Return exactly one lowercase label: goal if the ball crosses the goal line and a goal is scored; none for anything else, including buildup, missed shots, replays, or celebrations without the scoring moment. Output only goal or none.";
+  elements.segmentSeconds.value = "1";
+  elements.windowSeconds.value = "4";
+  elements.targetFps.value = "2";
+  elements.numFrames.value = "16";
+  elements.gateThreshold.value = "0.1";
+  elements.maxTokens.value = "2";
+  elements.triggerLabel.value = "goal";
+  elements.ignoreLabel.value = "none";
+  elements.cooldownSeconds.value = "8";
+  elements.showIgnored.checked = false;
+  elements.thresholdValue.textContent = "0.10";
+  setAnalysisMode();
 }
 
 async function uploadVideo(file) {
@@ -200,23 +242,36 @@ function handleMessage(message) {
 function renderResult(message) {
   const result = message.result;
   const metrics = result.metrics;
+  const decision = message.decision || {
+    accepted: result.responded,
+    visible: true,
+    label: "",
+    reason: result.responded ? "description" : "gate",
+  };
   const firstText = metrics.first_text_s == null ? null
     : message.backlog_s + message.prepare_s + metrics.first_text_s;
   const fullResponse = message.backlog_s + message.prepare_s + metrics.total_s;
   elements.gateMetric.textContent = result.probability.toFixed(3);
   elements.firstMetric.textContent = firstText == null ? "SKIP" : `${firstText.toFixed(2)}s`;
   elements.fullMetric.textContent = metrics.generation_s == null ? "SKIP" : `${fullResponse.toFixed(2)}s`;
+  elements.tokenCounter.textContent = `${metrics.generated_tokens} TOKENS`;
   elements.lagMetric.textContent = `${message.lag_s.toFixed(2)}s`;
   elements.lagNote.textContent = message.lag_s < 0.1 ? "caught up" : "behind live edge";
-  elements.segmentState.textContent = result.responded ? "RESPONDED" : "SILENT";
+  elements.segmentState.textContent = decision.accepted
+    ? (decision.reason === "event" ? "EVENT" : "RESPONDED")
+    : decision.reason.toUpperCase();
   document.querySelector(".video-stage").classList.remove("processing");
-  if (!result.responded) elements.liveText.textContent = "Gate skipped this segment.";
+  if (decision.accepted) elements.liveText.textContent = result.text || decision.label;
+  if (!decision.visible) return;
   const empty = elements.timelineEntries.querySelector(".timeline-empty");
   if (empty) empty.remove();
   const entry = document.createElement("article");
   entry.className = "timeline-entry";
+  entry.classList.toggle("event-match", decision.reason === "event");
+  entry.classList.toggle("ignored", !decision.accepted);
   const text = result.text || "Gate skipped this segment.";
-  entry.innerHTML = `<div class="stamp">${formatTime(result.start_s)} → ${formatTime(result.end_s)}</div><p></p><div class="score">p ${result.probability.toFixed(3)} · lag ${message.lag_s.toFixed(2)}s</div>`;
+  const decisionText = decision.label ? `${decision.label} · ` : "";
+  entry.innerHTML = `<div class="stamp">${formatTime(result.start_s)} → ${formatTime(result.end_s)}</div><p></p><div class="score">${decisionText}p ${result.probability.toFixed(3)} · lag ${message.lag_s.toFixed(2)}s</div>`;
   entry.querySelector("p").textContent = text;
   elements.timelineEntries.prepend(entry);
 }
@@ -239,6 +294,9 @@ elements.cameraTab.addEventListener("click", () => setMode("camera"));
 elements.videoInput.addEventListener("change", (event) => event.target.files[0] && uploadVideo(event.target.files[0]));
 elements.enableCamera.addEventListener("click", () => enableCamera().catch((error) => { elements.liveText.textContent = error.message; }));
 elements.cameraDevice.addEventListener("change", () => enableCamera().catch(() => {}));
+elements.analysisMode.addEventListener("change", setAnalysisMode);
+elements.soccerPreset.addEventListener("click", applySoccerPreset);
+elements.segmentSeconds.addEventListener("change", keepWindowAtLeastStride);
 elements.gateThreshold.addEventListener("input", () => { elements.thresholdValue.textContent = Number(elements.gateThreshold.value).toFixed(2); });
 elements.startButton.addEventListener("click", () => start().catch((error) => { elements.liveText.textContent = error.message; stop(); }));
 elements.stopButton.addEventListener("click", stop);
@@ -247,4 +305,5 @@ window.addEventListener("beforeunload", () => { if (cameraStream) cameraStream.g
 
 connect();
 showSource();
+setAnalysisMode();
 updateClock();
