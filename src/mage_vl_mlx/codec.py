@@ -163,10 +163,21 @@ def run_cv_preinfer(
         return out_dir
 
     binary = os.getenv("CV_PREINFER_BIN", "cv-preinfer")
+    setup_hint = (
+        "cv-preinfer uses an ephemeral 'docker run --rm', so no persistent "
+        "container needs to be started. Run these commands from the "
+        "mage-vl-mlx repository root, then restart the UI:\n"
+        "open -a Docker\n"
+        "docker build --platform linux/arm64 -t mage-cvprep:0.2.5 "
+        "-f docker/Dockerfile.cvprep docker/\n"
+        "CV_PREINFER_BIN=$PWD/docker/cv-preinfer uv run --group webui "
+        "python examples/realtime_web_ui/app.py"
+    )
     if shutil.which(binary) is None and not os.path.isfile(binary):
         raise RuntimeError(
             f"'{binary}' not found. codec-video-prep has no macOS build; "
-            "point CV_PREINFER_BIN at docker/cv-preinfer to run it in a container."
+            "use the container wrapper instead.\n\n"
+            f"{setup_hint}"
         )
 
     import cv2
@@ -190,6 +201,13 @@ def run_cv_preinfer(
         if out_dir.exists():
             shutil.rmtree(out_dir)
         tmp_dir.rename(out_dir)
+    except subprocess.CalledProcessError as error:
+        detail = (error.stderr or error.stdout or "").strip()
+        shutil.rmtree(tmp_dir, ignore_errors=True)
+        message = "cv-preinfer container failed."
+        if detail:
+            message += f"\n\nContainer output:\n{detail}"
+        raise RuntimeError(f"{message}\n\n{setup_hint}") from error
     except Exception:
         shutil.rmtree(tmp_dir, ignore_errors=True)
         raise

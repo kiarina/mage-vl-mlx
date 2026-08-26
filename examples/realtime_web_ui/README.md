@@ -37,7 +37,21 @@ described; raise it to use StreamMind as a pre-filter.
 Every runtime parameter used by the reference UI can be changed before a run:
 backend, decision stride, rolling context window, capture rate, maximum frames,
 gate threshold, generation limit, and question. The context window is always
-at least as long as the decision stride.
+at least as long as the decision stride. `VLM max output` is
+`max_new_tokens`: the maximum number of response tokens generated for one
+window.
+
+Capture rate applies to both uploaded files and the browser camera when using
+the frames backend. `Max frames` caps the frames retained after that temporal
+sampling and can be set up to 256; large values substantially increase prompt
+length, memory, and latency. The codec backend performs its own temporal and
+patch selection, so both controls are disabled when codec is selected.
+
+If the codec container or wrapper is unavailable, the UI error includes the
+commands needed to start Docker Desktop, build `mage-cvprep:0.2.5`, and restart
+the server with `CV_PREINFER_BIN=$PWD/docker/cv-preinfer`. The wrapper launches
+an ephemeral `docker run --rm` for each request; no persistent container needs
+to stay running.
 
 ## Event filter mode
 

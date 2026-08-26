@@ -80,7 +80,7 @@ button, select, input[type="range"] { cursor: pointer; }
 .output-heading p { margin: 0; color: var(--cyan); font-size: 9px; font-weight: 750; letter-spacing: .16em; }
 .output-heading span:last-child { margin-left: auto; color: var(--muted); font-size: 9px; }
 .pulse-icon { width: 8px; height: 8px; border: 1px solid var(--cyan); border-radius: 50%; box-shadow: 0 0 9px rgba(77,229,209,.5); }
-.live-text { margin: 13px 0 0; min-height: 52px; color: #edf2f7; font-size: clamp(15px, 1.4vw, 20px); line-height: 1.55; letter-spacing: -.01em; }
+.live-text { margin: 13px 0 0; min-height: 52px; color: #edf2f7; font-size: clamp(15px, 1.4vw, 20px); line-height: 1.55; letter-spacing: -.01em; white-space: pre-wrap; }
 
 .control-card { padding: 24px; background: var(--panel-strong); }
 .section-heading { margin-bottom: 20px; }
@@ -117,6 +117,7 @@ select, input[type="text"], input[type="number"] { margin-top: 7px; padding: 9px
 .threshold-label b { color: var(--cyan); font-variant-numeric: tabular-nums; }
 input[type="range"] { width: 100%; accent-color: var(--cyan); }
 .field-note { margin: 5px 0 0; color: #666f7e; font-size: 9px; line-height: 1.45; }
+.sampling-note { margin-top: 10px; }
 .actions { display: grid; grid-template-columns: 1fr auto; gap: 9px; margin-top: 20px; }
 .primary-button, .stop-button, .secondary-button { border-radius: 11px; min-height: 43px; border: 1px solid transparent; }
 .primary-button { display: flex; align-items: center; justify-content: center; gap: 9px; background: linear-gradient(120deg, #54ead7, #71cddc); color: #04110f; font-size: 11px; font-weight: 750; box-shadow: 0 10px 26px rgba(77,229,209,.12); }
@@ -140,7 +141,7 @@ input[type="range"] { width: 100%; accent-color: var(--cyan); }
 .timeline-entry.event-match { border-color: rgba(77,229,209,.32); background: linear-gradient(90deg, rgba(77,229,209,.08), rgba(255,255,255,.018)); box-shadow: inset 3px 0 0 var(--cyan); }
 .timeline-entry.ignored { opacity: .48; }
 .timeline-entry .stamp { color: var(--cyan); font-size: 10px; font-variant-numeric: tabular-nums; }
-.timeline-entry p { margin: 0; color: #dce2ea; font-size: 12px; line-height: 1.5; }
+.timeline-entry p { margin: 0; color: #dce2ea; font-size: 12px; line-height: 1.5; white-space: pre-wrap; }
 .timeline-entry .score { color: var(--muted); font-size: 9px; white-space: nowrap; }
 footer { display: flex; justify-content: space-between; padding: 20px 4px 0; color: #596270; font-size: 9px; letter-spacing: .08em; }
 

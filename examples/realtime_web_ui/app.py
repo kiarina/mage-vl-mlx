@@ -99,7 +99,7 @@ def settings_from(message: dict) -> dict:
         "segment_s": segment_s,
         "window_s": window_s,
         "target_fps": min(8.0, max(0.5, float(message.get("target_fps", 2.0)))),
-        "num_frames": min(64, max(1, int(message.get("num_frames", 16)))),
+        "num_frames": min(256, max(1, int(message.get("num_frames", 16)))),
         "gate_threshold": min(1.0, max(0.0, float(message.get("gate_threshold", 0.0)))),
         "max_new_tokens": min(256, max(1, int(message.get("max_new_tokens", 80)))),
         "trigger_label": str(message.get("trigger_label") or "goal").strip().lower(),

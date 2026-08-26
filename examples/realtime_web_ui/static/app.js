@@ -12,6 +12,7 @@ const elements = {
   cooldownSeconds: $("cooldownSeconds"), showIgnored: $("showIgnored"),
   backend: $("backend"), segmentSeconds: $("segmentSeconds"), windowSeconds: $("windowSeconds"),
   targetFps: $("targetFps"), numFrames: $("numFrames"), maxTokens: $("maxTokens"), gateThreshold: $("gateThreshold"),
+  samplingNote: $("samplingNote"),
   thresholdValue: $("thresholdValue"), startButton: $("startButton"), stopButton: $("stopButton"),
   liveLabel: $("liveLabel"), liveText: $("liveText"), tokenCounter: $("tokenCounter"),
   timecode: $("timecode"), segmentState: $("segmentState"), segmentNumber: $("segmentNumber"),
@@ -53,6 +54,7 @@ function setMode(nextMode) {
   elements.cameraControls.classList.toggle("hidden", !camera);
   elements.backend.disabled = camera;
   if (camera) elements.backend.value = "frames";
+  syncBackendControls();
   showSource();
 }
 
@@ -88,6 +90,19 @@ function setAnalysisMode() {
   elements.eventControls.classList.toggle("hidden", !eventMode);
 }
 
+function syncBackendControls() {
+  const codec = elements.backend.value === "codec";
+  elements.targetFps.disabled = codec;
+  elements.numFrames.disabled = codec;
+  if (codec) {
+    elements.samplingNote.textContent = "Codec controls temporal sampling internally; Capture rate and Max frames do not apply.";
+  } else if (mode === "camera") {
+    elements.samplingNote.textContent = "The browser captures the camera at this rate; each window is capped by Max frames.";
+  } else {
+    elements.samplingNote.textContent = "Frames backend samples the uploaded video at this rate, capped by Max frames.";
+  }
+}
+
 function keepWindowAtLeastStride() {
   const stride = Number(elements.segmentSeconds.value);
   const window = Number(elements.windowSeconds.value);
@@ -102,6 +117,7 @@ function applySoccerPreset() {
   if (running) return;
   elements.analysisMode.value = "event";
   elements.question.value = "Classify whether this video window contains the moment a goal is scored in a soccer match. Return exactly one lowercase label: goal if the ball crosses the goal line and a goal is scored; none for anything else, including buildup, missed shots, replays, or celebrations without the scoring moment. Output only goal or none.";
+  elements.backend.value = "frames";
   elements.segmentSeconds.value = "1";
   elements.windowSeconds.value = "4";
   elements.targetFps.value = "2";
@@ -114,6 +130,7 @@ function applySoccerPreset() {
   elements.showIgnored.checked = false;
   elements.thresholdValue.textContent = "0.10";
   setAnalysisMode();
+  syncBackendControls();
 }
 
 async function uploadVideo(file) {
@@ -296,6 +313,7 @@ elements.enableCamera.addEventListener("click", () => enableCamera().catch((erro
 elements.cameraDevice.addEventListener("change", () => enableCamera().catch(() => {}));
 elements.analysisMode.addEventListener("change", setAnalysisMode);
 elements.soccerPreset.addEventListener("click", applySoccerPreset);
+elements.backend.addEventListener("change", syncBackendControls);
 elements.segmentSeconds.addEventListener("change", keepWindowAtLeastStride);
 elements.gateThreshold.addEventListener("input", () => { elements.thresholdValue.textContent = Number(elements.gateThreshold.value).toFixed(2); });
 elements.startButton.addEventListener("click", () => start().catch((error) => { elements.liveText.textContent = error.message; stop(); }));
@@ -306,4 +324,5 @@ window.addEventListener("beforeunload", () => { if (cameraStream) cameraStream.g
 connect();
 showSource();
 setAnalysisMode();
+syncBackendControls();
 updateClock();

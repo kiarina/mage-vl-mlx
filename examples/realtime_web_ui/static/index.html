@@ -161,9 +161,18 @@
             </select>
           </label>
           <label>Max frames
-            <input id="numFrames" type="number" min="1" max="64" step="1" value="16">
+            <select id="numFrames">
+              <option value="8">8 frames</option>
+              <option value="16" selected>16 frames</option>
+              <option value="32">32 frames</option>
+              <option value="64">64 frames</option>
+              <option value="96">96 frames</option>
+              <option value="128">128 frames</option>
+              <option value="192">192 frames</option>
+              <option value="256">256 frames</option>
+            </select>
           </label>
-          <label>Max output
+          <label>VLM max output
             <select id="maxTokens">
               <option value="1">1 token</option>
               <option value="2">2 tokens</option>
@@ -177,6 +186,7 @@
             </select>
           </label>
         </div>
+        <p id="samplingNote" class="field-note sampling-note">Frames backend samples both file and camera input at this rate, capped by Max frames.</p>
 
         <label class="threshold-label" for="gateThreshold">
           <span>Gate threshold</span><b id="thresholdValue">0.00</b>
