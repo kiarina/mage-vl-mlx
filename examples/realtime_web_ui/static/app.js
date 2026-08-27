@@ -475,6 +475,11 @@ async function enableCamera() {
   await elements.cameraVideo.play();
   elements.enableCamera.textContent = "Camera ready";
   const devices = await navigator.mediaDevices.enumerateDevices();
+  // Rebuilding the options resets the select, which would silently undo the
+  // device that was just chosen and make every switch land on the first camera.
+  const chosen = elements.cameraDevice.value
+    || cameraStream.getVideoTracks()[0]?.getSettings().deviceId
+    || "";
   elements.cameraDevice.innerHTML = '<option value="">Default camera</option>';
   devices.filter((device) => device.kind === "videoinput").forEach((device, index) => {
     const option = document.createElement("option");
@@ -482,6 +487,7 @@ async function enableCamera() {
     option.textContent = device.label || `Camera ${index + 1}`;
     elements.cameraDevice.append(option);
   });
+  elements.cameraDevice.value = chosen;
   syncImmersiveControls();
   showSource();
 }
