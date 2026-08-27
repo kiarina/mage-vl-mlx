@@ -102,8 +102,15 @@ Selecting one overwrites those fields, so edit afterwards rather than before.
 
 **Defaults** restores every field to the state the page loads with, which is the
 way back after experimenting. The page opens on the camera tab with the codec
-backend, because that is the configuration these measurements landed on — which
-does mean the container below has to be built before the first run.
+backend, because that is the configuration these measurements landed on: it is
+the only one where live camera keeps up with the stream and the streaming gate
+does anything at all.
+
+That means the container below has to be built before the first run. **Frames
+is the explicit fallback** for when Docker is not available — it runs anywhere
+with no setup, at roughly three times the per-segment cost and with the gate
+effectively disabled. The codec setup error says so too, so a first run without
+Docker points at both the fix and the way to try it immediately.
 
 Camera gestures is an exploration preset: it leaves the gate open so every
 window reaches the VLM, keeps ignored results in the timeline, and uses a

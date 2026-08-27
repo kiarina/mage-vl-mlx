@@ -190,7 +190,11 @@ def run_cv_preinfer(
         "-f docker/Dockerfile.cvprep docker/\n"
         "uv run --group webui python examples/realtime_web_ui/app.py\n\n"
         "When launching outside the repository, set the wrapper explicitly:\n"
-        "CV_PREINFER_BIN=/path/to/mage-vl-mlx/docker/cv-preinfer"
+        "CV_PREINFER_BIN=/path/to/mage-vl-mlx/docker/cv-preinfer\n\n"
+        "To try it right now without Docker, switch the backend to frames. It "
+        "needs no container and runs anywhere, but it is markedly slower and "
+        "the streaming gate does not work on it: frames input scores near zero, "
+        "so keep the gate threshold at 0 and let the generated text decide."
     )
     if binary is None:
         requested = configured_binary or "$PWD/docker/cv-preinfer or cv-preinfer on PATH"
