@@ -53,10 +53,12 @@ const PRESETS = {
     name: "↺ Defaults",
     analysisMode: "describe",
     question: "Describe what is happening. Focus on changes and motion.",
-    backend: "frames",
-    segmentSeconds: "4",
+    backend: "codec",
+    segmentSeconds: "2",
     windowSeconds: "4",
-    targetFps: "2",
+    // 4s at 8 fps is 32 frames: the most temporal detail cv-preinfer will take
+    // before it starts emitting extra canvases and the model's work grows.
+    targetFps: "8",
     numFrames: "16",
     gateThreshold: "0",
     maxTokens: "64",

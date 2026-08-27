@@ -96,12 +96,14 @@ Selecting one overwrites those fields, so edit afterwards rather than before.
 
 | Preset | Mode | Watches for | Sampling |
 |---|---|---|---|
-| Defaults | Describe | — | frames, 4s stride, 4s window, 2 fps, gate 0 |
+| Defaults | Describe | — | codec, 2s stride, 4s window, 8 fps, gate 0 |
 | Soccer goal | Event filter | `goal` against `none` | codec, 2s stride, 4s window, 8 fps, gate 0.3 |
 | Camera gestures | Event filter | `sway`, `hand-out`, `hand-in`, `cup-in`, `cup-out` against `none` | codec, 2s stride, 4s window, 8 fps, gate 0 |
 
 **Defaults** restores every field to the state the page loads with, which is the
-way back after experimenting.
+way back after experimenting. The page opens on the camera tab with the codec
+backend, because that is the configuration these measurements landed on — which
+does mean the container below has to be built before the first run.
 
 Camera gestures is an exploration preset: it leaves the gate open so every
 window reaches the VLM, keeps ignored results in the timeline, and uses a
