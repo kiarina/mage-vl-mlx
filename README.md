@@ -97,8 +97,8 @@ uv run --group webui python examples/realtime_web_ui/app.py
 # open http://127.0.0.1:8000
 ```
 
-File mode supports the frames and codec backends. Camera mode currently uses
-sampled frames. See [`examples/realtime_web_ui`](examples/realtime_web_ui) for
+Both file and camera mode support the frames and codec backends. Camera segments
+are assembled as H.264 so the codec path can read them. See [`examples/realtime_web_ui`](examples/realtime_web_ui) for
 the controls, privacy boundary, real-time semantics, and a step-by-step soccer
 goal filtering example.
 

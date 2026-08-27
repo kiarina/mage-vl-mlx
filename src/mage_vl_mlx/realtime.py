@@ -116,6 +116,8 @@ class RealtimeSession:
         target_fps: float = 2.0,
         gate_threshold: float = 0.3,
         max_new_tokens: int = 80,
+        codec_cache_root: str | Path | None = None,
+        codec_cache_ephemeral: bool = False,
     ):
         if video_backend not in {"frames", "codec"}:
             raise ValueError(f"unsupported video backend: {video_backend}")
@@ -129,6 +131,12 @@ class RealtimeSession:
         self.target_fps = target_fps
         self.gate_threshold = gate_threshold
         self.max_new_tokens = max_new_tokens
+        # cv-preinfer caches its assets per video path and never evicts them.
+        # A live stream produces a new file per segment and never revisits one,
+        # so caching there only grows on disk (~570 KB per segment). Callers
+        # feeding a stream should keep the cache ephemeral.
+        self.codec_cache_root = Path(codec_cache_root) if codec_cache_root else None
+        self.codec_cache_ephemeral = codec_cache_ephemeral
         self._vision_history: list[mx.array] = []
         self._boundaries: list[int] = []
 
@@ -166,9 +174,16 @@ class RealtimeSession:
 
     def _preprocess(self, video_path: str | Path) -> dict:
         if self.video_backend == "codec":
+            import shutil
+
             from .codec import preprocess_codec, run_cv_preinfer
 
-            return preprocess_codec(run_cv_preinfer(video_path))
+            assets = run_cv_preinfer(video_path, cache_root=self.codec_cache_root)
+            try:
+                return preprocess_codec(assets)
+            finally:
+                if self.codec_cache_ephemeral:
+                    shutil.rmtree(assets, ignore_errors=True)
 
         from .video import preprocess_video
 

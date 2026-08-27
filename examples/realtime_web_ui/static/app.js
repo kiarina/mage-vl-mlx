@@ -176,11 +176,7 @@ function setMode(nextMode) {
   elements.cameraTab.classList.toggle("active", camera);
   elements.fileControls.classList.toggle("hidden", camera);
   elements.cameraControls.classList.toggle("hidden", !camera);
-  elements.backend.disabled = camera;
-  if (camera) {
-    elements.backend.value = "frames";
-    clampGateThresholdToBackend();
-  }
+  clampGateThresholdToBackend();
   syncBackendControls();
   showSource();
 }
@@ -217,9 +213,10 @@ function setAnalysisMode() {
   elements.eventControls.classList.toggle("hidden", !eventMode);
 }
 
-// The gate scores frames input near zero, so a threshold calibrated for codec
-// would silently skip every window. Camera mode is frames-only, so drop the
-// threshold to 0 there and let the generated label make the decision.
+// The gate scores frames input near zero — measured at most 0.013 across
+// sports and static scenes — so any non-zero threshold on that backend skips
+// every window. Drop the threshold to 0 there and let the generated label
+// decide. On codec the gate separates content types and is worth using.
 const FRAMES_MAX_USEFUL_GATE = 0.002;
 
 function clampGateThresholdToBackend() {
@@ -259,7 +256,7 @@ function applySoccerPreset() {
   // The gate only separates content types on codec input. With frames it never
   // rises above ~0.002 on soccer footage, so any non-zero threshold silently
   // suppressed every detection. Measured in kiarina/labs.
-  elements.backend.value = mode === "camera" ? "frames" : "codec";
+  elements.backend.value = "codec";
   elements.segmentSeconds.value = "1";
   elements.windowSeconds.value = "4";
   elements.targetFps.value = "2";

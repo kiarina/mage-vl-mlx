@@ -153,6 +153,28 @@ the VLM, collect positive and negative examples, then raise the threshold only
 after measuring missed events. The current UI filters observations; exporting a
 video clip with pre-roll and post-roll is not implemented yet.
 
+## Camera mode and the codec backend
+
+The browser sends independent JPEG stills, so the camera path has no compressed
+stream of its own. The server assembles each segment with ffmpeg as H.264 —
+not an OpenCV `mp4v` writer, whose MPEG-4 Part 2 bitstream cv-preinfer cannot
+parse at all. Re-encoding stills at 2-8 fps still preserves the gate signal:
+measured on a sports clip and a static scene, the gate separates them 0.79-0.82
+against 0.12-0.14, against 0.001-0.013 for the same input through frames.
+
+That makes codec the useful backend for live camera, and by a wide margin. On a
+MacBook Pro M1 Max with a 4-second stride, switching the camera path from frames
+to codec took a segment from about 8.5s to 2.49s — a real-time factor of 0.62
+instead of 2.1 — because the visual token count drops by roughly 79% and the
+generation prefill shrinks with it. Camera lag stopped growing and settled at
+about 2.7 seconds.
+
+cv-preinfer caches its assets per video path and never evicts them. A live
+stream never revisits a segment, so the UI gives the camera worker a throwaway
+cache directory (`codec_cache_root` with `codec_cache_ephemeral`), which is
+removed when the run stops. Without it a 1-second stride would leave roughly
+2 GB per hour on disk.
+
 When the context window is longer than the stride, windows overlap. The UI
 resets gate history before each rolling window so shared frames are not appended
 twice. Gate scores in that mode are independent-window scores rather than the

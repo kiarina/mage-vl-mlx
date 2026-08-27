@@ -12,6 +12,7 @@ from pathlib import Path
 import queue
 import re
 import shutil
+import subprocess
 import tempfile
 import threading
 import time
@@ -51,7 +52,9 @@ class ModelEngine:
                 video_backend="frames",
             )
 
-    def create_session(self, settings: dict) -> RealtimeSession:
+    def create_session(
+        self, settings: dict, codec_cache_root: Path | None = None
+    ) -> RealtimeSession:
         self.load()
         assert self.template is not None
         return RealtimeSession(
@@ -65,6 +68,8 @@ class ModelEngine:
             target_fps=settings["target_fps"],
             gate_threshold=settings["gate_threshold"],
             max_new_tokens=settings["max_new_tokens"],
+            codec_cache_root=codec_cache_root,
+            codec_cache_ephemeral=codec_cache_root is not None,
         )
 
 
@@ -151,29 +156,28 @@ def result_decision(
 
 
 def camera_clip(images: list[bytes], fps: float, output: Path) -> None:
-    import cv2
-    import numpy as np
+    """Assemble the browser's JPEG stills into an H.264 segment.
 
-    frames = []
-    for encoded in images:
-        frame = cv2.imdecode(np.frombuffer(encoded, np.uint8), cv2.IMREAD_COLOR)
-        if frame is not None:
-            frames.append(frame)
-    if not frames:
-        raise ValueError("no camera frames could be decoded")
-    height, width = frames[0].shape[:2]
-    writer = cv2.VideoWriter(
-        str(output), cv2.VideoWriter_fourcc(*"mp4v"), fps, (width, height)
+    H.264 rather than an OpenCV mp4v writer, because the codec backend reads bit
+    cost out of the compressed stream and cv-preinfer cannot parse MPEG-4 Part 2.
+    ffmpeg is already required for the file path, and reading the stills straight
+    from a pipe avoids a decode/re-encode round trip.
+    """
+    if not images:
+        raise ValueError("no camera frames to encode")
+    process = subprocess.run(
+        [
+            "ffmpeg", "-y", "-loglevel", "error",
+            "-f", "image2pipe", "-c:v", "mjpeg", "-framerate", f"{fps:g}",
+            "-i", "-", "-c:v", "libx264", "-pix_fmt", "yuv420p", "-an",
+            str(output),
+        ],
+        input=b"".join(images),
+        capture_output=True,
     )
-    if not writer.isOpened():
-        raise RuntimeError("could not create camera segment")
-    try:
-        for frame in frames:
-            if frame.shape[:2] != (height, width):
-                frame = cv2.resize(frame, (width, height))
-            writer.write(frame)
-    finally:
-        writer.release()
+    if process.returncode != 0 or not output.exists():
+        detail = process.stderr.decode("utf-8", "replace").strip()
+        raise RuntimeError(f"could not create camera segment: {detail[:400]}")
 
 
 @app.get("/")
@@ -381,7 +385,8 @@ async def websocket_endpoint(websocket: WebSocket):
     ) -> None:
         with engine.lock:
             emit("model", state="loading")
-            session = engine.create_session(settings)
+            codec_cache = Path(tempfile.mkdtemp(prefix="mage-vl-codec-"))
+            session = engine.create_session(settings, codec_cache_root=codec_cache)
             emit("model", state="ready")
             frames_per_stride = max(
                 1, round(settings["segment_s"] * settings["target_fps"])
@@ -471,6 +476,7 @@ async def websocket_endpoint(websocket: WebSocket):
                             segment=segment_index,
                             message=f"{type(error).__name__}: {error}",
                         )
+            shutil.rmtree(codec_cache, ignore_errors=True)
             emit("stream", state="stopped")
 
     async def stop_worker() -> None:
@@ -526,12 +532,6 @@ async def websocket_endpoint(websocket: WebSocket):
                 await stop_worker()
                 stop.clear()
                 settings = settings_from(message)
-                if settings["backend"] != "frames":
-                    await send(
-                        "error",
-                        message="Camera mode currently uses the frames backend.",
-                    )
-                    continue
                 camera_frames = queue.Queue(maxsize=max(
                     16, round(settings["target_fps"] * settings["segment_s"] * 4)
                 ))
