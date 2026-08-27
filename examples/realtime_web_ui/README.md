@@ -42,7 +42,15 @@ tailscale serve --https=443 off    # to stop
 ```
 
 Open that URL on the phone and the camera works. The WebSocket follows the page
-scheme automatically. Prefer this over exposing the port on the LAN: the UI has
+scheme automatically. Pick the rear camera from the device list to point the
+phone at things rather than at yourself.
+
+The button beside the READY chip switches the viewer to fullscreen: the camera
+fills the screen and the live response and segment timeline sit on top of it,
+with Start/Stop and Exit in the corner so a phone never has to leave the view.
+Nothing else about the layout changes — it is the same viewer, restyled — and
+the desktop layout is untouched. Where the Fullscreen API will not take a `div`
+(iOS Safari), the same mode still covers the viewport. Prefer this over exposing the port on the LAN: the UI has
 no authentication, so anyone on the same Wi-Fi could otherwise drive the model,
 while a tailnet is limited to your own devices. Note that enabling HTTPS for a
 tailnet publishes machine names to public certificate transparency logs.

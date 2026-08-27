@@ -35,7 +35,15 @@
             <button id="fileTab" class="tab" type="button">Video file</button>
             <button id="cameraTab" class="tab active" type="button">Camera</button>
           </div>
-          <div class="live-chip"><span></span><b id="liveLabel">READY</b></div>
+          <div class="viewer-toolbar-right">
+            <div class="live-chip"><span></span><b id="liveLabel">READY</b></div>
+            <button id="immersiveButton" class="icon-button" type="button" aria-pressed="false" aria-label="Enter fullscreen" title="Fullscreen">
+              <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false">
+                <path d="M1 5.5V1h4.5M10.5 1H15v4.5M15 10.5V15h-4.5M5.5 15H1v-4.5"
+                      fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+              </svg>
+            </button>
+          </div>
         </div>
 
         <div class="video-stage">
@@ -57,6 +65,10 @@
             </div>
           </div>
           <div class="scan-line"></div>
+          <div class="immersive-controls">
+            <button id="immersiveToggle" class="immersive-action" type="button">Start</button>
+            <button id="immersiveExit" class="immersive-action ghost" type="button" aria-label="Exit fullscreen">Exit</button>
+          </div>
         </div>
 
         <div class="insight-dock">

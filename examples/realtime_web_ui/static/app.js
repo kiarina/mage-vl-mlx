@@ -10,6 +10,9 @@ const elements = {
   analysisMode: $("analysisMode"), eventControls: $("eventControls"),
   question: $("question"), triggerLabel: $("triggerLabel"), ignoreLabel: $("ignoreLabel"),
   presetSelect: $("presetSelect"),
+  viewerCard: document.querySelector(".viewer-card"),
+  immersiveButton: $("immersiveButton"), immersiveToggle: $("immersiveToggle"),
+  immersiveExit: $("immersiveExit"),
   cooldownSeconds: $("cooldownSeconds"), showIgnored: $("showIgnored"),
   backend: $("backend"), segmentSeconds: $("segmentSeconds"), windowSeconds: $("windowSeconds"),
   targetFps: $("targetFps"), numFrames: $("numFrames"), maxTokens: $("maxTokens"), gateThreshold: $("gateThreshold"),
@@ -257,6 +260,32 @@ function setMode(nextMode) {
   showSource();
 }
 
+// Immersive mode reuses the viewer card rather than duplicating it: the video,
+// the live response and the timeline already live there, so the Fullscreen API
+// plus one class is the whole feature. The class also works alone, which is the
+// fallback where requestFullscreen is not available for a div.
+function immersiveActive() {
+  return elements.viewerCard.classList.contains("immersive");
+}
+
+function syncImmersiveControls() {
+  const active = immersiveActive();
+  elements.immersiveButton.setAttribute("aria-pressed", String(active));
+  elements.immersiveButton.setAttribute(
+    "aria-label", active ? "Exit fullscreen" : "Enter fullscreen");
+  elements.immersiveToggle.textContent = running ? "Stop" : "Start";
+}
+
+function setImmersive(active) {
+  elements.viewerCard.classList.toggle("immersive", active);
+  syncImmersiveControls();
+  if (active && document.fullscreenElement !== elements.viewerCard) {
+    elements.viewerCard.requestFullscreen?.().catch(() => {});
+  } else if (!active && document.fullscreenElement) {
+    document.exitFullscreen?.().catch(() => {});
+  }
+}
+
 function showSource() {
   const hasFile = mode === "file" && uploaded;
   const hasCamera = mode === "camera" && cameraStream;
@@ -452,6 +481,7 @@ async function start() {
   running = true;
   streamStartedAt = performance.now();
   elements.startButton.disabled = true;
+  syncImmersiveControls();
   elements.stopButton.disabled = false;
   elements.liveLabel.parentElement.classList.add("running");
   elements.liveLabel.textContent = "LIVE";
@@ -464,6 +494,7 @@ function stop(notify = true) {
   elements.fileVideo.pause();
   running = false;
   elements.startButton.disabled = false;
+  syncImmersiveControls();
   elements.stopButton.disabled = true;
   elements.liveLabel.parentElement.classList.remove("running");
   elements.liveLabel.textContent = "READY";
@@ -555,6 +586,16 @@ function updateClock() {
   elements.timecode.textContent = formatTime(seconds);
   requestAnimationFrame(updateClock);
 }
+
+elements.immersiveButton.addEventListener("click", () => setImmersive(!immersiveActive()));
+elements.immersiveExit.addEventListener("click", () => setImmersive(false));
+elements.immersiveToggle.addEventListener("click", () => {
+  if (running) stop(); else start();
+});
+// Leaving fullscreen by gesture or Escape must drop the class too.
+document.addEventListener("fullscreenchange", () => {
+  if (!document.fullscreenElement && immersiveActive()) setImmersive(false);
+});
 
 elements.fileTab.addEventListener("click", () => setMode("file"));
 elements.cameraTab.addEventListener("click", () => setMode("camera"));
