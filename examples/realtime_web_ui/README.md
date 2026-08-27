@@ -84,9 +84,10 @@ uv run --group webui python examples/realtime_web_ui/app.py \
   --weights /path/to/mage-vl-bf16
 ```
 
-Camera mode currently uses the frames backend. File mode supports both frames
-and codec. The default gate threshold is `0` so every completed segment is
-described; raise it to use StreamMind as a pre-filter.
+Both file and camera mode support the frames and codec backends: camera
+segments are written as H.264 so the codec path can read them. The default gate
+threshold is `0` so every completed segment is described; raise it to use
+StreamMind as a pre-filter.
 
 Every runtime parameter used by the reference UI can be changed before a run:
 backend, decision stride, rolling context window, capture rate, maximum frames,
@@ -120,9 +121,13 @@ in the live response while its tokens are arriving.
 
 The **Goal preset** provides a starting point for soccer highlights:
 
-- 1 second decision stride and a rolling 4 second context window
-- gate threshold 0.1, 2 generated tokens, `goal` / `none` labels
+- 2 second decision stride and a rolling 4 second context window
+- codec backend at 8 fps, gate threshold 0.3, `goal` / `none` labels
 - 8 second cooldown to merge repeated detections of one scoring event
+
+The threshold and backend are calibrated rather than chosen: the shipped
+frames-plus-0.1 configuration detected nothing at all, because the gate barely
+responds to frames input.
 
 ### Presets
 
@@ -163,9 +168,9 @@ keep up.
 
 Choose a match video, load the **Soccer goal** preset, and start analysis. Once per
 second, the UI evaluates the latest window of up to four seconds. The preset
-adapts to camera mode, but see the backend note below: camera capture is
-frames-only, where the gate cannot be used as a filter. The
-preset supplies this question to the VLM:
+works the same way on a live camera: camera segments are written as H.264, so
+the codec backend and the gate filter behave as they do on a file. The preset
+supplies this question to the VLM:
 
 ```text
 Classify whether this video window contains the moment a goal is scored in a
