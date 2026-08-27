@@ -138,7 +138,7 @@ input[type="range"] { width: 100%; accent-color: var(--cyan); }
 .timeline-header { display: flex; justify-content: space-between; align-items: center; }
 .inline-timeline .timeline-header h2 { font-size: 14px; }
 .text-button { border: 0; background: transparent; color: var(--muted); font-size: 10px; }
-.timeline-entries { display: grid; gap: 8px; margin-top: 12px; }
+.timeline-entries { display: grid; grid-auto-rows: max-content; align-content: start; gap: 8px; margin-top: 12px; }
 .inline-timeline .timeline-entries { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding-right: 4px; scrollbar-color: rgba(137,146,163,.48) transparent; scrollbar-gutter: stable; scrollbar-width: thin; }
 .inline-timeline .timeline-entries::-webkit-scrollbar { width: 6px; }
 .inline-timeline .timeline-entries::-webkit-scrollbar-track { background: transparent; }
