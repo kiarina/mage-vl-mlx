@@ -331,7 +331,11 @@ same corner reports: seconds of work per second of video, taken as the median of
 the last few segments. Below 1 the lag holds steady and a fixed delay stays in
 step; at 1 or above the badge turns red, the backlog grows with every segment,
 and no fixed offset can track it. Stream time, display delay and RTF stack at the
-top left of the picture so they can be read without looking away from it. Live camera has no buffer to
+top left of the picture, and the segment state with the gate score and the three
+latency figures stack at the top right, so every number can be read without
+looking away from the video. Fullscreen keeps only the left column — each
+observation already carries its own gate score and lag, and a phone has no room
+for a second column of numbers. Live camera has no buffer to
 hold back, so the control applies to uploaded video only.
 
 ## Real-time semantics

@@ -69,9 +69,28 @@
                 <b id="rtfValue">—</b>
               </div>
             </div>
-            <div class="segment-badge">
-              <span id="segmentState">IDLE</span>
-              <b id="segmentNumber">SEG —</b>
+            <div class="stage-metrics">
+              <div class="segment-badge">
+                <span id="segmentState">IDLE</span>
+                <b id="segmentNumber">SEG —</b>
+              </div>
+              <div class="segment-badge metric-badge">
+                <span>GATE SCORE</span>
+                <b id="gateMetric">—</b>
+              </div>
+              <div class="segment-badge metric-badge">
+                <span>FIRST TEXT</span>
+                <b id="firstMetric">—</b>
+              </div>
+              <div class="segment-badge metric-badge">
+                <span>FULL RESPONSE</span>
+                <b id="fullMetric">—</b>
+              </div>
+              <div class="segment-badge metric-badge">
+                <span>STREAM LAG</span>
+                <b id="lagMetric">—</b>
+                <i id="lagNote">no backlog</i>
+              </div>
             </div>
           </div>
           <div class="scan-line"></div>
@@ -271,12 +290,7 @@
       </aside>
     </section>
 
-    <section class="metrics-grid" aria-label="Live metrics">
-      <article class="metric panel"><span>GATE SCORE</span><strong id="gateMetric">—</strong><small>p(speak)</small></article>
-      <article class="metric panel"><span>FIRST TEXT</span><strong id="firstMetric">—</strong><small>after segment end</small></article>
-      <article class="metric panel"><span>FULL RESPONSE</span><strong id="fullMetric">—</strong><small>after segment end</small></article>
-      <article class="metric panel"><span>STREAM LAG</span><strong id="lagMetric">—</strong><small id="lagNote">no backlog</small></article>
-    </section>
+
 
     <footer><span>Runs locally on Apple Silicon</span><span>Video and camera data never leave your own machines</span></footer>
   </main>

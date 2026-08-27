@@ -302,18 +302,29 @@ footer { display: flex; justify-content: space-between; padding: 20px 4px 0; col
   .viewer-card.immersive .timeline-entries { max-height: 28vh; }
 }
 
-/* Status reads as one column at the top left, so the video can be watched while
-   the numbers are taken in without the eye travelling across the frame. */
-.stage-status { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
+/* Status reads as one column at the top left and the response figures as one at
+   the top right, so the video can be watched while the numbers are taken in
+   without the eye travelling away from it. Without flex-start the two columns
+   stretch each other to equal height and the badges grow into empty boxes. */
+.stage-overlay { align-items: flex-start; }
+.stage-status, .stage-metrics { display: flex; flex-direction: column; gap: 6px; }
+.stage-status { align-items: flex-start; }
+.stage-metrics { align-items: flex-end; }
+.metric-badge b { font-variant-numeric: tabular-nums; }
+.metric-badge i { display: block; margin-top: 1px; font-style: normal; font-size: 9px; letter-spacing: .04em; color: #63808a; }
 .delay-badge { border-color: rgba(255,196,120,.35); color: #ffd39b; }
 .rtf-badge { border-color: rgba(120,220,190,.3); color: #a8e8cf; }
 .rtf-badge.warn { border-color: rgba(255,150,130,.45); color: #ffb4a2; }
 .delay-badge.hidden, .rtf-badge.hidden { display: none; }
 
 /* Fullscreen puts the controls at the top right, so the whole status column
-   stays on the left rather than splitting across the frame. */
+   stays on the left rather than splitting across the frame. The response
+   figures are dropped there: each observation already carries its own gate
+   score and lag, and a phone has no room for a second column of numbers. */
 .viewer-card.immersive .stage-overlay { flex-direction: column; align-items: flex-start; gap: 6px; }
 .viewer-card.immersive .stage-status { gap: 6px; }
+.viewer-card.immersive .stage-metrics { align-items: flex-start; }
+.viewer-card.immersive .metric-badge { display: none; }
 .viewer-card.immersive .delay-badge,
 .viewer-card.immersive .rtf-badge,
 .viewer-card.immersive .segment-badge { background: rgba(0,0,0,.45); }
