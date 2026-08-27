@@ -10,6 +10,7 @@ const elements = {
   analysisMode: $("analysisMode"), eventControls: $("eventControls"),
   question: $("question"), triggerLabel: $("triggerLabel"), ignoreLabel: $("ignoreLabel"),
   presetSelect: $("presetSelect"),
+  displayDelay: $("displayDelay"), delayBadge: $("delayBadge"), delayValue: $("delayValue"),
   viewerCard: document.querySelector(".viewer-card"),
   immersiveButton: $("immersiveButton"), immersiveToggle: $("immersiveToggle"),
   immersiveExit: $("immersiveExit"), immersiveCamera: $("immersiveCamera"),
@@ -139,6 +140,14 @@ const HELP_CONTENT = {
       "Anything the model returns that is in neither list is shown as unmatched-label, which is how you notice the Question and the labels have drifted apart.",
     ],
   },
+  "display-delay": {
+    title: "Display delay",
+    paragraphs: [
+      "Holds the picture back by this many seconds while analysis starts immediately, so a response lands on the moment it describes instead of trailing it. Match it to the FULL RESPONSE figure below the viewer: at a 2 second response, a 2 second delay puts text and picture in step.",
+      "This changes when you see the video, not how fast the model is. The DELAYED badge stays on screen so the offset is never mistaken for the processing time, which STREAM LAG keeps reporting.",
+      "Only uploaded video can be held back. A live camera has no buffer to delay, so the control is disabled in camera mode.",
+    ],
+  },
   cooldown: {
     title: "Cooldown",
     paragraphs: [
@@ -206,6 +215,7 @@ const HELP_CONTENT = {
 };
 
 let mode = "camera";
+let delayTimer = null;
 let socket;
 let uploaded = null;
 let cameraStream = null;
@@ -258,6 +268,7 @@ function setMode(nextMode) {
   clampGateThresholdToBackend();
   syncBackendControls();
   syncImmersiveControls();
+  syncDelayBadge();
   showSource();
 }
 
@@ -317,6 +328,19 @@ function setImmersive(active) {
   } else if (!active && document.fullscreenElement) {
     document.exitFullscreen?.().catch(() => {});
   }
+}
+
+// Only the file path can hold the picture back today: a live camera stream has
+// no seekable buffer to delay, so the control does not apply there yet.
+function displayDelaySeconds() {
+  return mode === "file" ? Number(elements.displayDelay.value) || 0 : 0;
+}
+
+function syncDelayBadge() {
+  const seconds = displayDelaySeconds();
+  elements.delayBadge.classList.toggle("hidden", seconds <= 0);
+  elements.delayValue.textContent = `${seconds.toFixed(1)}s`;
+  elements.displayDelay.disabled = mode !== "file";
 }
 
 function showSource() {
@@ -510,8 +534,21 @@ async function start() {
   if (mode === "file") {
     if (!uploaded) { elements.uploadDetail.textContent = "Choose a video first"; return; }
     elements.fileVideo.currentTime = 0;
-    await elements.fileVideo.play();
+    // Analysis starts now; playback can start later. Holding the picture back by
+    // roughly the time a response takes puts the two in step, so the text lands
+    // on the moment it describes instead of trailing it. The badge keeps the
+    // offset visible, because the underlying processing is no faster for it.
     socket.send(JSON.stringify({ ...settings("start_file"), media_id: uploaded.id }));
+    const delayMs = displayDelaySeconds() * 1000;
+    if (delayMs > 0) {
+      elements.fileVideo.pause();
+      delayTimer = setTimeout(() => {
+        delayTimer = null;
+        if (running) elements.fileVideo.play().catch(() => {});
+      }, delayMs);
+    } else {
+      await elements.fileVideo.play();
+    }
   } else {
     if (!cameraStream) await enableCamera();
     socket.send(JSON.stringify(settings("start_camera")));
@@ -531,6 +568,8 @@ function stop(notify = true) {
   if (notify && socket?.readyState === WebSocket.OPEN) socket.send(JSON.stringify({ action: "stop" }));
   if (captureTimer) clearInterval(captureTimer);
   captureTimer = null;
+  if (delayTimer) clearTimeout(delayTimer);
+  delayTimer = null;
   elements.fileVideo.pause();
   running = false;
   elements.startButton.disabled = false;
@@ -661,6 +700,8 @@ elements.presetSelect.addEventListener("change", (event) => {
 });
 elements.backend.addEventListener("change", () => { clampGateThresholdToBackend(); syncBackendControls(); });
 elements.targetFps.addEventListener("change", syncBackendControls);
+elements.displayDelay.addEventListener("change", syncDelayBadge);
+syncDelayBadge();
 elements.windowSeconds.addEventListener("change", syncBackendControls);
 elements.segmentSeconds.addEventListener("change", () => { keepWindowAtLeastStride(); syncBackendControls(); });
 elements.gateThreshold.addEventListener("input", () => { elements.thresholdValue.textContent = Number(elements.gateThreshold.value).toFixed(2); });

@@ -311,6 +311,24 @@ resets gate history before each rolling window so shared frames are not appended
 twice. Gate scores in that mode are independent-window scores rather than the
 official whole-stream causal timeline.
 
+## Display delay
+
+A response can only describe a window after that window has finished, so text
+always trails the picture. **Display delay** holds uploaded video back by a
+chosen number of seconds while analysis starts immediately, which puts the two
+back in step: set it near the FULL RESPONSE figure and a description lands on
+the moment it describes rather than several seconds later.
+
+Measured on a MacBook Pro M1 Max with a 4-second stride, a segment ending at 4s
+was described while the picture showed 5.12s — 1.12s of drift instead of 4.12s
+without the delay.
+
+This changes when you see the video, not how fast the model is, so the DELAYED
+badge stays on screen and STREAM LAG keeps reporting the real processing lag. It
+only works while the stream keeps up: at a real-time factor above 1 the lag grows
+with every segment and no fixed offset can track it. Live camera has no buffer to
+hold back, so the control applies to uploaded video only.
+
 ## Real-time semantics
 
 A result can only begin after its input segment has completed. The displayed

@@ -301,3 +301,7 @@ footer { display: flex; justify-content: space-between; padding: 20px 4px 0; col
   .viewer-card.immersive .live-text { font-size: 19px; }
   .viewer-card.immersive .timeline-entries { max-height: 28vh; }
 }
+
+.delay-badge { border-color: rgba(255,196,120,.35); color: #ffd39b; }
+.delay-badge.hidden { display: none; }
+.viewer-card.immersive .delay-badge { background: rgba(0,0,0,.45); }

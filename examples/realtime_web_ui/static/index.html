@@ -59,6 +59,10 @@
               <span>STREAM</span>
               <b id="timecode">00:00.0</b>
             </div>
+            <div id="delayBadge" class="segment-badge delay-badge hidden">
+              <span>DELAYED</span>
+              <b id="delayValue">0.0s</b>
+            </div>
             <div class="segment-badge">
               <span id="segmentState">IDLE</span>
               <b id="segmentNumber">SEG —</b>
@@ -203,6 +207,18 @@
               <option value="16">16 fps</option>
               <option value="24">24 fps</option>
               <option value="30">30 fps</option>
+            </select>
+          </div>
+          <div class="setting-field">
+            <div class="label-row"><label for="displayDelay">Display delay</label><button class="help-button" type="button" data-help="display-delay" aria-label="About Display delay" aria-haspopup="dialog" aria-controls="helpDialog">?</button></div>
+            <select id="displayDelay">
+              <option value="0" selected>Off · live</option>
+              <option value="1">1 second</option>
+              <option value="2">2 seconds</option>
+              <option value="3">3 seconds</option>
+              <option value="4">4 seconds</option>
+              <option value="6">6 seconds</option>
+              <option value="8">8 seconds</option>
             </select>
           </div>
           <div class="setting-field">
