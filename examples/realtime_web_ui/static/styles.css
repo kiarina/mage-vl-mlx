@@ -158,6 +158,8 @@ footer { display: flex; justify-content: space-between; padding: 20px 4px 0; col
 @keyframes blink { 50% { opacity: .35; } }
 
 @media (min-width: 981px) {
+  .shell { display: flex; min-height: 100vh; min-height: 100dvh; flex-direction: column; }
+  .workspace { flex: 1 0 auto; }
   .viewer-card { contain: size; }
 }
 
