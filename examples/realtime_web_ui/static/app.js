@@ -226,17 +226,36 @@ function clampGateThresholdToBackend() {
   elements.thresholdValue.textContent = "0.00";
 }
 
+// cv-preinfer runs with --min_group_frames 8 and fails with "no canvases
+// produced" below that, so a codec window needs at least this many frames.
+const CODEC_MIN_FRAMES = 8;
+
+function codecWindowFrames() {
+  return Number(elements.windowSeconds.value) * Number(elements.targetFps.value);
+}
+
 function syncBackendControls() {
   const codec = elements.backend.value === "codec";
-  elements.targetFps.disabled = codec;
+  const camera = mode === "camera";
+  // In camera mode the browser decides how many frames exist, so capture rate
+  // still applies to codec: it is what fills the window.
+  elements.targetFps.disabled = codec && !camera;
   elements.numFrames.disabled = codec;
-  if (codec) {
+  if (codec && camera) {
+    const frames = codecWindowFrames();
+    elements.samplingNote.textContent = frames < CODEC_MIN_FRAMES
+      ? `Codec needs at least ${CODEC_MIN_FRAMES} frames per window; this capture rate and context window give ${frames}. Raise either, or switch to Frames.`
+      : `The browser captures at this rate; codec sees ${frames} frames per window and samples them internally. Max frames does not apply.`;
+  } else if (codec) {
     elements.samplingNote.textContent = "Codec controls temporal sampling internally; Capture rate and Max frames do not apply.";
-  } else if (mode === "camera") {
+  } else if (camera) {
     elements.samplingNote.textContent = "The browser captures the camera at this rate; each window is capped by Max frames.";
   } else {
     elements.samplingNote.textContent = "Frames backend samples the uploaded video at this rate, capped by Max frames.";
   }
+  const tooFew = codec && camera && codecWindowFrames() < CODEC_MIN_FRAMES;
+  elements.samplingNote.classList.toggle("warn", tooFew);
+  elements.startButton.disabled = running || tooFew;
 }
 
 function keepWindowAtLeastStride() {
@@ -453,8 +472,10 @@ elements.enableCamera.addEventListener("click", () => enableCamera().catch((erro
 elements.cameraDevice.addEventListener("change", () => enableCamera().catch(() => {}));
 elements.analysisMode.addEventListener("change", setAnalysisMode);
 elements.soccerPreset.addEventListener("click", applySoccerPreset);
-elements.backend.addEventListener("change", syncBackendControls);
-elements.segmentSeconds.addEventListener("change", keepWindowAtLeastStride);
+elements.backend.addEventListener("change", () => { clampGateThresholdToBackend(); syncBackendControls(); });
+elements.targetFps.addEventListener("change", syncBackendControls);
+elements.windowSeconds.addEventListener("change", syncBackendControls);
+elements.segmentSeconds.addEventListener("change", () => { keepWindowAtLeastStride(); syncBackendControls(); });
 elements.gateThreshold.addEventListener("input", () => { elements.thresholdValue.textContent = Number(elements.gateThreshold.value).toFixed(2); });
 elements.startButton.addEventListener("click", () => start().catch((error) => { elements.liveText.textContent = error.message; stop(); }));
 elements.stopButton.addEventListener("click", stop);

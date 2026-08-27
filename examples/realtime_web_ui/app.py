@@ -29,6 +29,10 @@ from mage_vl_mlx.realtime import (
     video_duration,
 )
 
+# cv-preinfer is invoked with --min_group_frames 8; fewer frames than that
+# produce no canvases at all.
+CODEC_MIN_FRAMES = 8
+
 HERE = Path(__file__).resolve().parent
 STATIC = HERE / "static"
 UPLOAD_ROOT = Path(tempfile.mkdtemp(prefix="mage-vl-webui-"))
@@ -532,6 +536,23 @@ async def websocket_endpoint(websocket: WebSocket):
                 await stop_worker()
                 stop.clear()
                 settings = settings_from(message)
+                # cv-preinfer runs with --min_group_frames 8 and fails with
+                # "no canvases produced" below that. In camera mode the browser
+                # decides the frame count, so check it before starting instead
+                # of surfacing a container traceback on the first segment.
+                window_frames = round(settings["window_s"] * settings["target_fps"])
+                if settings["backend"] == "codec" and window_frames < CODEC_MIN_FRAMES:
+                    await send(
+                        "error",
+                        message=(
+                            f"Codec needs at least {CODEC_MIN_FRAMES} frames per "
+                            f"window. A {settings['window_s']:g}s context window at "
+                            f"{settings['target_fps']:g} fps gives {window_frames}. "
+                            "Raise the capture rate or the context window, or use "
+                            "the frames backend."
+                        ),
+                    )
+                    continue
                 camera_frames = queue.Queue(maxsize=max(
                     16, round(settings["target_fps"] * settings["segment_s"] * 4)
                 ))

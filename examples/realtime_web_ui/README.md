@@ -169,6 +169,12 @@ instead of 2.1 — because the visual token count drops by roughly 79% and the
 generation prefill shrinks with it. Camera lag stopped growing and settled at
 about 2.7 seconds.
 
+cv-preinfer also needs at least 8 frames per window (`--min_group_frames 8`);
+fewer produce `no canvases produced`. In camera mode the browser decides the
+frame count, so the capture-rate control stays active for codec there and the UI
+blocks Start when `context window x capture rate` falls below 8. A 2-second
+window at 2 fps is 4 frames and will not run; 4 fps, or a 4-second window, does.
+
 cv-preinfer caches its assets per video path and never evicts them. A live
 stream never revisits a segment, so the UI gives the camera worker a throwaway
 cache directory (`codec_cache_root` with `codec_cache_ephemeral`), which is
