@@ -12,6 +12,7 @@ const elements = {
   presetSelect: $("presetSelect"),
   displayDelay: $("displayDelay"), delayBadge: $("delayBadge"), delayValue: $("delayValue"),
   rtfBadge: $("rtfBadge"), rtfValue: $("rtfValue"),
+  cameraDelayed: $("cameraDelayed"),
   viewerCard: document.querySelector(".viewer-card"),
   immersiveButton: $("immersiveButton"), immersiveToggle: $("immersiveToggle"),
   immersiveExit: $("immersiveExit"), immersiveCamera: $("immersiveCamera"),
@@ -146,7 +147,8 @@ const HELP_CONTENT = {
     paragraphs: [
       "Holds the picture back by this many seconds while analysis starts immediately, so a response lands on the moment it describes instead of trailing it. Match it to the FULL RESPONSE figure below the viewer: at a 2 second response, a 2 second delay puts text and picture in step.",
       "This changes when you see the video, not how fast the model is. The DELAYED badge stays on screen so the offset is never mistaken for the processing time, which STREAM LAG keeps reporting.",
-      "Only uploaded video can be held back. A live camera has no buffer to delay, so the control is disabled in camera mode.",
+      "Auto aims at the median response time of the last few segments instead of a fixed number, and reaches it by playing slightly slow or slightly fast until the offset matches. It needs no guess up front and follows the machine as conditions change.",
+      "Camera mode records the stream alongside the capture that feeds the model and plays it back from that buffer, so a live camera can be held back too. Where the browser cannot record, the control is disabled.",
     ],
   },
   cooldown: {
@@ -218,6 +220,8 @@ const HELP_CONTENT = {
 let mode = "camera";
 let delayTimer = null;
 let recentWork = [];
+let recentResponse = [];
+let dvr = null;
 let socket;
 let uploaded = null;
 let cameraStream = null;
@@ -332,10 +336,58 @@ function setImmersive(active) {
   }
 }
 
-// Only the file path can hold the picture back today: a live camera stream has
-// no seekable buffer to delay, so the control does not apply there yet.
+// A live camera has nothing to rewind, so one is recorded alongside the capture
+// that feeds the model and played back from a buffer. VP8 in WebM is the pairing
+// both MediaRecorder and MediaSource accept; the codec backend's H.264-only
+// requirement applies to what the model is sent, not to what is displayed.
+const DVR_MIME = ["video/webm;codecs=vp8", "video/webm;codecs=vp9"].find(
+  (type) => window.MediaRecorder?.isTypeSupported(type) && window.MediaSource?.isTypeSupported(type));
+
+function startDvr(stream) {
+  if (!DVR_MIME) return null;
+  const source = new MediaSource();
+  const state = { source, recorder: null, buffer: null, queue: [], pump: null };
+  elements.cameraDelayed.src = URL.createObjectURL(source);
+  source.addEventListener("sourceopen", () => {
+    state.buffer = source.addSourceBuffer(DVR_MIME);
+    state.pump = setInterval(() => {
+      if (state.buffer && !state.buffer.updating && state.queue.length) {
+        try { state.buffer.appendBuffer(state.queue.shift()); } catch (_) { state.queue.length = 0; }
+      }
+    }, 60);
+  }, { once: true });
+  state.recorder = new MediaRecorder(stream, { mimeType: DVR_MIME });
+  state.recorder.ondataavailable = async (event) => {
+    if (event.data.size) state.queue.push(new Uint8Array(await event.data.arrayBuffer()));
+  };
+  state.recorder.start(200);
+  return state;
+}
+
+function stopDvr() {
+  if (!dvr) return;
+  if (dvr.pump) clearInterval(dvr.pump);
+  try { dvr.recorder?.state !== "inactive" && dvr.recorder.stop(); } catch (_) {}
+  try { dvr.source.readyState === "open" && dvr.source.endOfStream(); } catch (_) {}
+  elements.cameraDelayed.removeAttribute("src");
+  elements.cameraDelayed.load();
+  elements.cameraDelayed.classList.remove("visible");
+  dvr = null;
+}
+
+function delayIsAuto() {
+  return elements.displayDelay.value === "auto";
+}
+
+function targetDelaySeconds() {
+  if (!delayIsAuto()) return Number(elements.displayDelay.value) || 0;
+  if (!recentResponse.length) return 0;
+  const sorted = [...recentResponse].sort((a, b) => a - b);
+  return sorted[Math.floor(sorted.length / 2)];
+}
+
 function displayDelaySeconds() {
-  return mode === "file" ? Number(elements.displayDelay.value) || 0 : 0;
+  return delayIsAuto() ? targetDelaySeconds() : Number(elements.displayDelay.value) || 0;
 }
 
 // Real-time factor is processing time over the media it covered. Below 1 the
@@ -364,11 +416,67 @@ function resetRtf() {
   elements.rtfValue.textContent = "—";
 }
 
+// Rather than deciding an offset before anything is known, playback is nudged
+// toward the target: a little slow while it is too close to live, a little fast
+// while it has fallen too far behind. The rate stays near 1 so the correction is
+// not visible as motion, and a dead band keeps it from hunting.
+const RATE_LIMIT = 0.06;
+const DEAD_BAND_S = 0.15;
+// Rate alone moves the offset by at most RATE_LIMIT seconds per second, so
+// closing a multi-second gap that way would take a minute. A large error is
+// corrected by seeking once and then held with the rate.
+const SEEK_THRESHOLD_S = 0.8;
+const SEEK_COOLDOWN_MS = 1000;
+let lastSeekAt = 0;
+
+function currentDisplayOffset() {
+  if (mode === "file") {
+    if (!running) return 0;
+    return (performance.now() - streamStartedAt) / 1000 - elements.fileVideo.currentTime;
+  }
+  const video = elements.cameraDelayed;
+  if (!video.buffered.length) return 0;
+  return video.buffered.end(video.buffered.length - 1) - video.currentTime;
+}
+
+function steerDisplay() {
+  const video = mode === "file" ? elements.fileVideo : elements.cameraDelayed;
+  const target = targetDelaySeconds();
+  if (!running || target <= 0 || video.paused) {
+    if (video.playbackRate !== 1) video.playbackRate = 1;
+    return;
+  }
+  const error = currentDisplayOffset() - target;
+  if (Math.abs(error) <= DEAD_BAND_S) {
+    video.playbackRate = 1;
+    return;
+  }
+  const now = performance.now();
+  if (Math.abs(error) > SEEK_THRESHOLD_S && now - lastSeekAt > SEEK_COOLDOWN_MS) {
+    const limit = mode === "file"
+      ? (video.duration || 0)
+      : (video.buffered.length ? video.buffered.end(video.buffered.length - 1) : 0);
+    const wanted = video.currentTime + error;
+    if (limit > 0 && wanted >= 0 && wanted <= limit) {
+      video.currentTime = wanted;
+      video.playbackRate = 1;
+      lastSeekAt = now;
+      return;
+    }
+  }
+  // Behind target means the picture is too close to live: slow down to widen it.
+  const rate = 1 + Math.max(-RATE_LIMIT, Math.min(RATE_LIMIT, error * 0.15));
+  video.playbackRate = rate;
+}
+
 function syncDelayBadge() {
   const seconds = displayDelaySeconds();
-  elements.delayBadge.classList.toggle("hidden", seconds <= 0);
-  elements.delayValue.textContent = `${seconds.toFixed(1)}s`;
-  elements.displayDelay.disabled = mode !== "file";
+  const configured = delayIsAuto() || Number(elements.displayDelay.value) > 0;
+  elements.delayBadge.classList.toggle("hidden", !configured);
+  elements.delayValue.textContent = delayIsAuto()
+    ? (seconds > 0 ? `${seconds.toFixed(1)}s auto` : "auto")
+    : `${seconds.toFixed(1)}s`;
+  elements.displayDelay.disabled = mode === "camera" && !DVR_MIME;
 }
 
 function showSource() {
@@ -560,6 +668,8 @@ async function start() {
   if (!socket || socket.readyState !== WebSocket.OPEN) return;
   clearLive();
   resetRtf();
+  recentResponse = [];
+  lastSeekAt = 0;
   if (mode === "file") {
     if (!uploaded) { elements.uploadDetail.textContent = "Choose a video first"; return; }
     elements.fileVideo.currentTime = 0;
@@ -568,7 +678,9 @@ async function start() {
     // on the moment it describes instead of trailing it. The badge keeps the
     // offset visible, because the underlying processing is no faster for it.
     socket.send(JSON.stringify({ ...settings("start_file"), media_id: uploaded.id }));
-    const delayMs = displayDelaySeconds() * 1000;
+    // Auto has nothing to aim at yet, so it starts live and the corrector widens
+    // the gap as soon as the first responses say how wide it should be.
+    const delayMs = delayIsAuto() ? 0 : displayDelaySeconds() * 1000;
     if (delayMs > 0) {
       elements.fileVideo.pause();
       delayTimer = setTimeout(() => {
@@ -576,13 +688,26 @@ async function start() {
         if (running) elements.fileVideo.play().catch(() => {});
       }, delayMs);
     } else {
-      await elements.fileVideo.play();
+      // Analysis has already been requested, so a refused play must not abort
+      // the rest of start(): autoplay policy and backgrounded tabs both reject
+      // here, and leaving `running` false would hide a session that is running.
+      await elements.fileVideo.play().catch((error) => {
+        elements.liveText.textContent = `Playback did not start: ${error.message}`;
+      });
     }
   } else {
     if (!cameraStream) await enableCamera();
     socket.send(JSON.stringify(settings("start_camera")));
     const interval = 1000 / Number(elements.targetFps.value);
     captureTimer = setInterval(captureCamera, interval);
+    if (DVR_MIME && (delayIsAuto() || displayDelaySeconds() > 0)) {
+      dvr = startDvr(cameraStream);
+      if (dvr) {
+        elements.cameraVideo.classList.remove("visible");
+        elements.cameraDelayed.classList.add("visible");
+        elements.cameraDelayed.play().catch(() => {});
+      }
+    }
   }
   running = true;
   streamStartedAt = performance.now();
@@ -599,6 +724,9 @@ function stop(notify = true) {
   captureTimer = null;
   if (delayTimer) clearTimeout(delayTimer);
   delayTimer = null;
+  stopDvr();
+  elements.fileVideo.playbackRate = 1;
+  if (mode === "camera" && cameraStream) elements.cameraVideo.classList.add("visible");
   elements.fileVideo.pause();
   running = false;
   elements.startButton.disabled = false;
@@ -638,6 +766,12 @@ function handleMessage(message) {
       (message.prepare_s || 0) + (message.result.metrics.total_s || 0),
       Number(elements.segmentSeconds.value),
     );
+    if (message.result.metrics.total_s != null) {
+      recentResponse.push((message.backlog_s || 0) + (message.prepare_s || 0)
+        + message.result.metrics.total_s);
+      if (recentResponse.length > 5) recentResponse.shift();
+      if (delayIsAuto()) syncDelayBadge();
+    }
     renderResult(message);
   } else if (message.type === "stream" && ["complete", "stopped"].includes(message.state)) {
     stop(false);
@@ -696,6 +830,7 @@ function updateClock() {
   const seconds = mode === "file" ? elements.fileVideo.currentTime
                                    : (running ? (performance.now() - streamStartedAt) / 1000 : 0);
   elements.timecode.textContent = formatTime(seconds);
+  steerDisplay();
   requestAnimationFrame(updateClock);
 }
 

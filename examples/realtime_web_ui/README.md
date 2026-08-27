@@ -326,6 +326,19 @@ without the delay.
 This changes when you see the video, not how fast the model is, so the DELAYED
 badge stays on screen and STREAM LAG keeps reporting the real processing lag.
 
+**Auto** aims at the median response time of the last few segments rather than a
+number you pick. It corrects by seeking once when the gap is large and then holds
+it with small playback-rate changes, so it settles within a few seconds and
+follows the machine as conditions change. In a simulation of the control loop it
+reached a 4 second target in 4.5 seconds and tracked a move to 1 second
+immediately.
+
+Camera mode records the stream alongside the capture that feeds the model —
+VP8 in WebM, which both MediaRecorder and MediaSource accept — and plays the
+picture back from that buffer, so a live camera can be held back too. The codec
+backend's H.264-only requirement applies to what the model is sent, not to what
+is displayed. Where the browser cannot record, the control is disabled.
+
 It only works while the stream keeps up, which is what the **RTF** badge in the
 same corner reports: seconds of work per second of video, taken as the median of
 the last few segments. Below 1 the lag holds steady and a fixed delay stays in
@@ -335,8 +348,7 @@ top left of the picture, and the segment state with the gate score and the three
 latency figures stack at the top right, so every number can be read without
 looking away from the video. Fullscreen keeps only the left column — each
 observation already carries its own gate score and lag, and a phone has no room
-for a second column of numbers. Live camera has no buffer to
-hold back, so the control applies to uploaded video only.
+for a second column of numbers. 
 
 ## Real-time semantics
 

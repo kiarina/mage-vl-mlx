@@ -63,6 +63,8 @@ button, select, input[type="range"] { cursor: pointer; }
 
 .video-stage { position: relative; aspect-ratio: 16/8.5; min-height: 390px; overflow: hidden; background: #090c12; }
 .video-stage video { width: 100%; height: 100%; display: none; object-fit: contain; background: #05070a; }
+/* The delayed camera view replaces the live one while a delay is active. */
+#cameraDelayed.visible { display: block; }
 .video-stage video.visible { display: block; }
 .empty-stage { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--muted); }
 .empty-stage p { margin: 26px 0 7px; color: #bbc2ce; font-size: 14px; }

@@ -49,6 +49,7 @@
         <div class="video-stage">
           <video id="fileVideo" playsinline controls></video>
           <video id="cameraVideo" playsinline muted></video>
+          <video id="cameraDelayed" playsinline muted></video>
           <div id="emptyStage" class="empty-stage">
             <div class="scan-orbit"><i></i></div>
             <p>Choose a video or connect a camera</p>
@@ -238,6 +239,7 @@
             <div class="label-row"><label for="displayDelay">Display delay</label><button class="help-button" type="button" data-help="display-delay" aria-label="About Display delay" aria-haspopup="dialog" aria-controls="helpDialog">?</button></div>
             <select id="displayDelay">
               <option value="0" selected>Off · live</option>
+              <option value="auto">Auto · match response</option>
               <option value="1">1 second</option>
               <option value="2">2 seconds</option>
               <option value="3">3 seconds</option>
