@@ -364,9 +364,22 @@ of being presented as a meaningful observation.
 Camera segments are timestamped by when their frames arrived, and stream lag is
 measured against the newest frame in the segment just finished. Both stay
 correct when the model cannot keep up: dropped frames do not rewind the clock,
-and lag is not capped by the size of the frame queue. On a MacBook Pro M1 Max
-with a 1-second stride, lag grows without bound, which is the honest reading —
-that machine needs roughly 8 to 10 seconds per segment.
+and lag is not read off the length of the frame queue.
+
+Under sustained overload the lag settles rather than growing without bound. The
+queue is capped and the oldest frame is dropped to make room, so the steady
+state is one queue wait — the queue length divided by the capture rate — plus
+one segment of processing. Measured on the frames backend with a 1-second
+stride, a 4-second window, 2 fps and 640x480 input, a MacBook Pro M1 Max settles
+at about 13.4s and a Mac Studio M4 Max at about 10.1s.
+
+What is bounded is the delay, not the loss. Those two runs discarded 74% and 57%
+of the frames they received, and a window nominally 4 seconds long ended up
+covering 19 and 9.5 seconds of real time. Every reading stays honest about that:
+the sampling note gives the measured rate, the real span and the share dropped,
+the timeline stamps show the span, and the segment is written at the rate the
+frames actually arrived, so a stretched window is never passed off as a dense
+one.
 
 For parity with the official whole-stream behavior, the gate currently replays
 the accumulated visual history for each segment. It does not yet carry Mamba
