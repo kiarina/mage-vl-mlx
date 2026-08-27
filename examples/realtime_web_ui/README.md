@@ -25,6 +25,28 @@ In that setup camera frames do leave the laptop for the machine running the
 model, which is why the UI says media stays on *your own machines* rather than
 on this one. Nothing reaches a third party either way.
 
+### Using a phone as the camera
+
+The same split works from a phone, but not over plain HTTP: `getUserMedia`
+needs a secure context, and only `localhost` is exempt. Binding the server to
+`0.0.0.0` and opening `http://<lan-ip>:8000` therefore cannot use the camera at
+all — the page loads and the camera is refused.
+
+With [Tailscale](https://tailscale.com) on both devices, `tailscale serve`
+terminates TLS with a real certificate for the tailnet:
+
+```sh
+tailscale serve --bg 8000          # on the machine running the UI
+# -> https://<host>.<tailnet>.ts.net/
+tailscale serve --https=443 off    # to stop
+```
+
+Open that URL on the phone and the camera works. The WebSocket follows the page
+scheme automatically. Prefer this over exposing the port on the LAN: the UI has
+no authentication, so anyone on the same Wi-Fi could otherwise drive the model,
+while a tailnet is limited to your own devices. Note that enabling HTTPS for a
+tailnet publishes machine names to public certificate transparency logs.
+
 ## Requirements
 
 - Apple Silicon Mac
