@@ -66,7 +66,10 @@ button, select, input[type="range"] { cursor: pointer; }
 .source-band .upload-zone b { font-size: 11.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .source-band .upload-zone small { margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .source-band .secondary-button { width: auto; margin: 0; min-height: 42px; padding: 0 16px; white-space: nowrap; }
-.source-band #cameraDevice { flex: 1 1 auto; min-width: 0; max-width: 34ch; min-height: 42px; }
+/* The shared select rule adds a top margin for stacked fields, which in a row
+   pushes the control below the button beside it and reads as mismatched
+   heights even though both are 42px. */
+.source-band #cameraDevice { flex: 1 1 auto; min-width: 0; max-width: 34ch; min-height: 42px; margin: 0; }
 .viewer-card.immersive .source-band { display: none; }
 .source-tabs { display: flex; gap: 5px; background: rgba(0,0,0,.24); padding: 4px; border-radius: 11px; }
 .tab { border: 0; background: transparent; color: var(--muted); padding: 7px 13px; border-radius: 8px; font-size: 12px; }
