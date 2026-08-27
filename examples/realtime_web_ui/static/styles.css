@@ -53,18 +53,21 @@ button, select, input[type="range"] { cursor: pointer; }
 .workspace { display: grid; grid-template-columns: minmax(0, 1.65fr) minmax(330px, .75fr); gap: 18px; }
 .viewer-card, .control-card { border-radius: var(--radius); overflow: hidden; }
 .viewer-card { display: flex; min-height: 0; flex-direction: column; }
-/* Choosing the source and turning it on belong together, so both live in the
-   toolbar beside the tabs rather than at the top of the settings column. */
-.viewer-toolbar { min-height: 58px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 9px 18px; border-bottom: 1px solid var(--line); }
-.viewer-toolbar .source-control { flex: 1 1 auto; min-width: 0; margin: 0; display: flex; align-items: center; gap: 8px; }
-.viewer-toolbar .source-control.hidden { display: none; }
-.viewer-toolbar .viewer-toolbar-right { margin-left: auto; }
-.viewer-toolbar .upload-zone { min-height: 36px; padding: 5px 12px; border-radius: 10px; gap: 9px; }
-.viewer-toolbar .upload-zone .upload-symbol { font-size: 13px; }
-.viewer-toolbar .upload-zone b { font-size: 11px; max-width: 30ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.viewer-toolbar .upload-zone small { margin-top: 1px; }
-.viewer-toolbar .secondary-button { width: auto; margin: 0; min-height: 36px; padding: 0 14px; white-space: nowrap; }
-.viewer-toolbar #cameraDevice { min-height: 36px; max-width: 24ch; text-overflow: ellipsis; }
+.viewer-toolbar { height: 58px; display: flex; align-items: center; justify-content: space-between; padding: 0 18px; border-bottom: 1px solid var(--line); }
+
+/* Preparing the chosen source is its own step, so it gets its own strip between
+   the tabs that pick the source and the picture that comes out of it. */
+.source-band { display: flex; align-items: center; gap: 10px; padding: 11px 18px; border-bottom: 1px solid var(--line); background: rgba(255,255,255,.014); }
+.source-band .source-control { flex: 1 1 auto; min-width: 0; margin: 0; display: flex; align-items: center; gap: 10px; }
+.source-band .source-control.hidden { display: none; }
+.source-band .upload-zone { flex: 1 1 auto; min-width: 0; min-height: 42px; padding: 6px 14px; border-radius: 11px; gap: 11px; }
+.source-band .upload-zone .upload-symbol { font-size: 14px; }
+.source-band .upload-zone > span:last-child { min-width: 0; }
+.source-band .upload-zone b { font-size: 11.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.source-band .upload-zone small { margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.source-band .secondary-button { width: auto; margin: 0; min-height: 42px; padding: 0 16px; white-space: nowrap; }
+.source-band #cameraDevice { flex: 1 1 auto; min-width: 0; max-width: 34ch; min-height: 42px; }
+.viewer-card.immersive .source-band { display: none; }
 .source-tabs { display: flex; gap: 5px; background: rgba(0,0,0,.24); padding: 4px; border-radius: 11px; }
 .tab { border: 0; background: transparent; color: var(--muted); padding: 7px 13px; border-radius: 8px; font-size: 12px; }
 .tab.active { color: var(--text); background: rgba(255,255,255,.09); }
