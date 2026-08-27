@@ -116,14 +116,24 @@ The stages have separate responsibilities:
 
 | VLM or gate result | UI behavior |
 |---|---|
-| `goal` | Show the event unless it is inside the 8 second cooldown |
-| `none` | Ignore it; optionally keep it in the diagnostic timeline |
+| a trigger label | Show the event unless it is inside the 8 second cooldown |
+| an ignore label | Ignore it; optionally keep it in the diagnostic timeline |
 | another label or sentence | Ignore it as `unmatched-label` |
 | gate below threshold | Skip VLM generation and mark it as `gate` |
 
+Both label fields accept several values separated by commas or whitespace, so
+one run can watch for more than one event: `goal, save` against `none, replay`.
+The cooldown applies across the whole trigger set rather than per label.
+
 Event filter does not replace the question: the question defines the event and
-must instruct the VLM to return labels matching **Trigger label** and **Ignore
-label**. Changing those two controls manually does not rewrite the question.
+must instruct the VLM to return labels matching **Trigger labels** and **Ignore
+labels**. Changing those two controls manually does not rewrite the question.
+
+Prefer telling the model to answer briefly in the question over relying on
+**VLM max output**. The cap truncates mid-token — a 16 token cap turns a camera
+description into `A man is looking up and to the right, with his han` — whereas
+a question that asks for one short sentence ends on its own. Keep the cap as a
+latency backstop, not as the way to get short answers.
 
 The preset uses the **codec** backend, which needs the container wrapper above.
 That is not a style preference. On a clip with a goal at 6-8s, sampled in

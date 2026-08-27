@@ -36,7 +36,7 @@ const HELP_CONTENT = {
     title: "Analysis mode",
     paragraphs: [
       "Describe every response streams the model's text into Live Response for each window that passes the gate.",
-      "Event filter treats the model as a short-label classifier. It buffers the answer until generation finishes, then shows only results whose first normalized label matches Trigger label. Question is still required: it defines what event the model should classify.",
+      "Event filter treats the model as a short-label classifier. It buffers the answer until generation finishes, then shows only results whose first normalized label is one of the Trigger labels. Question is still required: it defines what event the model should classify.",
     ],
   },
   question: {
@@ -48,17 +48,19 @@ const HELP_CONTENT = {
     example: SOCCER_QUESTION,
   },
   "trigger-label": {
-    title: "Trigger label",
+    title: "Trigger labels",
     paragraphs: [
-      "The exact first label that counts as a detected event. Matching is case-insensitive after surrounding punctuation is removed.",
-      "The Question must instruct the model to return this same label. Changing the field alone does not rewrite the Question.",
+      "The first labels that count as a detected event. Matching is case-insensitive after surrounding punctuation is removed.",
+      "Separate several labels with commas or spaces to watch for more than one event in a single run, for example: goal, save, foul.",
+      "The Question must instruct the model to return these same labels. Changing the field alone does not rewrite the Question.",
     ],
   },
   "ignore-label": {
-    title: "Ignore label",
+    title: "Ignore labels",
     paragraphs: [
-      "The exact label for windows that do not contain the target event. These results never replace Live Response in Event filter mode.",
-      "Use a short, unambiguous value such as none and include the same value in the Question.",
+      "The labels for windows that do not contain a target event. These results never replace Live Response in Event filter mode.",
+      "Several labels are allowed here too, separated by commas or spaces, for example: none, replay, crowd.",
+      "Anything the model returns that is in neither list is shown as unmatched-label, which is how you notice the Question and the labels have drifted apart.",
     ],
   },
   cooldown: {

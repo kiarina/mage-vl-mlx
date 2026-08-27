@@ -111,8 +111,8 @@ def settings_from(message: dict) -> dict:
         "num_frames": min(256, max(1, int(message.get("num_frames", 16)))),
         "gate_threshold": min(1.0, max(0.0, float(message.get("gate_threshold", 0.0)))),
         "max_new_tokens": min(256, max(1, int(message.get("max_new_tokens", 80)))),
-        "trigger_label": str(message.get("trigger_label") or "goal").strip().lower(),
-        "ignore_label": str(message.get("ignore_label") or "none").strip().lower(),
+        "trigger_labels": label_set(message.get("trigger_label"), "goal"),
+        "ignore_labels": label_set(message.get("ignore_label"), "none"),
         "cooldown_s": min(120.0, max(0.0, float(message.get("cooldown_s", 8.0)))),
         "show_ignored": bool(message.get("show_ignored", False)),
     }
@@ -122,6 +122,18 @@ def normalized_label(text: str) -> str:
     """Return a robust first label from a terse classifier response."""
     labels = re.findall(r"[\w-]+", text.lower(), flags=re.UNICODE)
     return labels[0] if labels else ""
+
+
+def label_set(raw, fallback: str) -> list[str]:
+    """Accept several labels per field, separated by commas or whitespace.
+
+    One field per label class keeps the UI small, but a single label per class
+    forces one run per event type. Splitting here lets a run watch for several
+    at once without changing the question format.
+    """
+    text = str(raw if raw is not None else "").strip().lower()
+    labels = [label for label in re.split(r"[,\s]+", text) if label]
+    return labels or [fallback]
 
 
 def result_decision(
@@ -139,10 +151,10 @@ def result_decision(
         return {"accepted": True, "visible": True, "label": "", "reason": "description"}
 
     label = normalized_label(result["text"])
-    if label == settings["ignore_label"]:
+    if label in settings["ignore_labels"]:
         reason = "ignored-label"
         accepted = False
-    elif label != settings["trigger_label"]:
+    elif label not in settings["trigger_labels"]:
         reason = "unmatched-label"
         accepted = False
     elif last_event_s is not None and end_s - last_event_s < settings["cooldown_s"]:
