@@ -186,6 +186,31 @@ def health():
     return {"ok": True, "model_loaded": engine.template is not None}
 
 
+@app.get("/api/memory")
+def memory():
+    """Report MLX allocator state so a sampler can correlate it with the OS view.
+
+    MLX reports what this process asked the allocator for. macOS `footprint`
+    additionally counts Metal's reserved and cached device memory, so the two
+    numbers are not interchangeable. The pid is returned to let an external
+    sampler read RSS and footprint at the same instant.
+    """
+    return {
+        "pid": os.getpid(),
+        "model_loaded": engine.template is not None,
+        "active_gb": mx.get_active_memory() / 1024**3,
+        "cache_gb": mx.get_cache_memory() / 1024**3,
+        "peak_gb": mx.get_peak_memory() / 1024**3,
+    }
+
+
+@app.post("/api/memory/reset-peak")
+def reset_peak_memory():
+    """Reset the MLX peak counter so the next interval is measured on its own."""
+    mx.reset_peak_memory()
+    return {"ok": True, "peak_gb": mx.get_peak_memory() / 1024**3}
+
+
 @app.post("/api/upload")
 async def upload_video(file: UploadFile = File(...)):
     suffix = Path(file.filename or "video.mp4").suffix.lower()

@@ -139,3 +139,22 @@ For parity with the official whole-stream behavior, the gate currently replays
 the accumulated visual history for each segment. It does not yet carry Mamba
 state incrementally. Long-stream backlog and the cost of this replay are
 measured separately in `kiarina/labs`.
+
+## Memory instrumentation
+
+Two endpoints report the allocator state of the running process so a long
+session can be measured without patching the UI:
+
+```sh
+curl -s http://127.0.0.1:8000/api/memory
+# {"pid":..., "model_loaded":true, "active_gb":..., "cache_gb":..., "peak_gb":...}
+
+curl -s -X POST http://127.0.0.1:8000/api/memory/reset-peak
+```
+
+`peak_gb` is cumulative for the process, so reset it before an interval you
+want to attribute on its own. These numbers describe what MLX asked its
+allocator for. The macOS `footprint` of the same pid is larger, because it also
+counts Metal's reserved and cached device memory, so the two are not
+interchangeable; the pid is returned to let an external sampler read both at the
+same instant.
