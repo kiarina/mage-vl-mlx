@@ -55,13 +55,19 @@
             <span>All media stays on your own hardware.</span>
           </div>
           <div class="stage-overlay">
-            <div class="timecode">
-              <span>STREAM</span>
-              <b id="timecode">00:00.0</b>
-            </div>
-            <div id="delayBadge" class="segment-badge delay-badge hidden">
-              <span>DELAYED</span>
-              <b id="delayValue">0.0s</b>
+            <div class="stage-status">
+              <div class="timecode">
+                <span>STREAM</span>
+                <b id="timecode">00:00.0</b>
+              </div>
+              <div id="delayBadge" class="segment-badge delay-badge hidden">
+                <span>DELAYED</span>
+                <b id="delayValue">0.0s</b>
+              </div>
+              <div id="rtfBadge" class="segment-badge rtf-badge hidden">
+                <span>RTF</span>
+                <b id="rtfValue">—</b>
+              </div>
             </div>
             <div class="segment-badge">
               <span id="segmentState">IDLE</span>

@@ -324,9 +324,14 @@ was described while the picture showed 5.12s — 1.12s of drift instead of 4.12s
 without the delay.
 
 This changes when you see the video, not how fast the model is, so the DELAYED
-badge stays on screen and STREAM LAG keeps reporting the real processing lag. It
-only works while the stream keeps up: at a real-time factor above 1 the lag grows
-with every segment and no fixed offset can track it. Live camera has no buffer to
+badge stays on screen and STREAM LAG keeps reporting the real processing lag.
+
+It only works while the stream keeps up, which is what the **RTF** badge in the
+same corner reports: seconds of work per second of video, taken as the median of
+the last few segments. Below 1 the lag holds steady and a fixed delay stays in
+step; at 1 or above the badge turns red, the backlog grows with every segment,
+and no fixed offset can track it. Stream time, display delay and RTF stack at the
+top left of the picture so they can be read without looking away from it. Live camera has no buffer to
 hold back, so the control applies to uploaded video only.
 
 ## Real-time semantics

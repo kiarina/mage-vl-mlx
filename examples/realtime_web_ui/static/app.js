@@ -11,6 +11,7 @@ const elements = {
   question: $("question"), triggerLabel: $("triggerLabel"), ignoreLabel: $("ignoreLabel"),
   presetSelect: $("presetSelect"),
   displayDelay: $("displayDelay"), delayBadge: $("delayBadge"), delayValue: $("delayValue"),
+  rtfBadge: $("rtfBadge"), rtfValue: $("rtfValue"),
   viewerCard: document.querySelector(".viewer-card"),
   immersiveButton: $("immersiveButton"), immersiveToggle: $("immersiveToggle"),
   immersiveExit: $("immersiveExit"), immersiveCamera: $("immersiveCamera"),
@@ -216,6 +217,7 @@ const HELP_CONTENT = {
 
 let mode = "camera";
 let delayTimer = null;
+let recentWork = [];
 let socket;
 let uploaded = null;
 let cameraStream = null;
@@ -334,6 +336,32 @@ function setImmersive(active) {
 // no seekable buffer to delay, so the control does not apply there yet.
 function displayDelaySeconds() {
   return mode === "file" ? Number(elements.displayDelay.value) || 0 : 0;
+}
+
+// Real-time factor is processing time over the media it covered. Below 1 the
+// stream is keeping up and a fixed display delay can hold; above it the backlog
+// grows every segment and no fixed offset can track it. The median of the last
+// few segments keeps one slow window from swinging the reading.
+function recordWork(workSeconds, strideSeconds) {
+  if (!(strideSeconds > 0)) return;
+  recentWork.push(workSeconds / strideSeconds);
+  if (recentWork.length > 5) recentWork.shift();
+  const sorted = [...recentWork].sort((a, b) => a - b);
+  const rtf = sorted[Math.floor(sorted.length / 2)];
+  const keepingUp = rtf < 1;
+  elements.rtfBadge.classList.remove("hidden");
+  elements.rtfBadge.classList.toggle("warn", !keepingUp);
+  elements.rtfValue.textContent = rtf.toFixed(2);
+  elements.rtfBadge.title = keepingUp
+    ? `Keeping up: ${rtf.toFixed(2)} seconds of work per second of video`
+    : `Falling behind: ${rtf.toFixed(2)} seconds of work per second of video`;
+}
+
+function resetRtf() {
+  recentWork = [];
+  elements.rtfBadge.classList.add("hidden");
+  elements.rtfBadge.classList.remove("warn");
+  elements.rtfValue.textContent = "—";
 }
 
 function syncDelayBadge() {
@@ -531,6 +559,7 @@ function captureCamera() {
 async function start() {
   if (!socket || socket.readyState !== WebSocket.OPEN) return;
   clearLive();
+  resetRtf();
   if (mode === "file") {
     if (!uploaded) { elements.uploadDetail.textContent = "Choose a video first"; return; }
     elements.fileVideo.currentTime = 0;
@@ -605,6 +634,10 @@ function handleMessage(message) {
     elements.liveText.textContent = message.text || "…";
     elements.tokenCounter.textContent = `${message.index} TOKENS`;
   } else if (message.type === "result") {
+    recordWork(
+      (message.prepare_s || 0) + (message.result.metrics.total_s || 0),
+      Number(elements.segmentSeconds.value),
+    );
     renderResult(message);
   } else if (message.type === "stream" && ["complete", "stopped"].includes(message.state)) {
     stop(false);

@@ -302,6 +302,18 @@ footer { display: flex; justify-content: space-between; padding: 20px 4px 0; col
   .viewer-card.immersive .timeline-entries { max-height: 28vh; }
 }
 
+/* Status reads as one column at the top left, so the video can be watched while
+   the numbers are taken in without the eye travelling across the frame. */
+.stage-status { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
 .delay-badge { border-color: rgba(255,196,120,.35); color: #ffd39b; }
-.delay-badge.hidden { display: none; }
-.viewer-card.immersive .delay-badge { background: rgba(0,0,0,.45); }
+.rtf-badge { border-color: rgba(120,220,190,.3); color: #a8e8cf; }
+.rtf-badge.warn { border-color: rgba(255,150,130,.45); color: #ffb4a2; }
+.delay-badge.hidden, .rtf-badge.hidden { display: none; }
+
+/* Fullscreen puts the controls at the top right, so the whole status column
+   stays on the left rather than splitting across the frame. */
+.viewer-card.immersive .stage-overlay { flex-direction: column; align-items: flex-start; gap: 6px; }
+.viewer-card.immersive .stage-status { gap: 6px; }
+.viewer-card.immersive .delay-badge,
+.viewer-card.immersive .rtf-badge,
+.viewer-card.immersive .segment-badge { background: rgba(0,0,0,.45); }
