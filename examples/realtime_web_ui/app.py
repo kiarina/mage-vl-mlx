@@ -211,6 +211,23 @@ def reset_peak_memory():
     return {"ok": True, "peak_gb": mx.get_peak_memory() / 1024**3}
 
 
+@app.post("/api/memory/clear-cache")
+def clear_cache():
+    """Return MLX's buffer cache to the system.
+
+    The cache holds the high-water mark of every allocation the process has made,
+    so one run with a large window keeps that memory reserved for the lifetime of
+    the process. Clearing costs re-allocation on the next segment.
+    """
+    before = mx.get_cache_memory()
+    mx.clear_cache()
+    return {
+        "ok": True,
+        "freed_gb": (before - mx.get_cache_memory()) / 1024**3,
+        "cache_gb": mx.get_cache_memory() / 1024**3,
+    }
+
+
 @app.post("/api/upload")
 async def upload_video(file: UploadFile = File(...)):
     suffix = Path(file.filename or "video.mp4").suffix.lower()
@@ -249,7 +266,7 @@ async def websocket_endpoint(websocket: WebSocket):
     loop = asyncio.get_running_loop()
     send_lock = asyncio.Lock()
     stop = threading.Event()
-    camera_frames: queue.Queue[bytes] | None = None
+    camera_frames: queue.Queue[tuple[float, bytes]] | None = None
     worker: asyncio.Task | None = None
 
     async def send(kind: str, **data) -> None:
@@ -359,7 +376,9 @@ async def websocket_endpoint(websocket: WebSocket):
                     boundary_s += settings["segment_s"]
             emit("stream", state="stopped" if stop.is_set() else "complete")
 
-    def process_camera(frame_queue: queue.Queue[bytes], settings: dict) -> None:
+    def process_camera(
+        frame_queue: queue.Queue[tuple[float, bytes]], settings: dict
+    ) -> None:
         with engine.lock:
             emit("model", state="loading")
             session = engine.create_session(settings)
@@ -372,9 +391,9 @@ async def websocket_endpoint(websocket: WebSocket):
                 round(settings["window_s"] * settings["target_fps"]),
             )
             segment_index = 0
-            end_s = 0.0
+            origin: float | None = None
             frames_since_segment = 0
-            captured: deque[bytes] = deque(maxlen=frames_per_window)
+            captured: deque[tuple[float, bytes]] = deque(maxlen=frames_per_window)
             last_event_s: float | None = None
             with tempfile.TemporaryDirectory() as directory:
                 while not stop.is_set():
@@ -383,18 +402,29 @@ async def websocket_endpoint(websocket: WebSocket):
                         frames_since_segment += 1
                     except queue.Empty:
                         continue
+                    if origin is None:
+                        origin = captured[0][0]
                     if frames_since_segment < frames_per_stride:
                         continue
                     frames_since_segment = 0
                     segment_index += 1
-                    end_s += settings["segment_s"]
-                    start_s = max(0.0, end_s - len(captured) / settings["target_fps"])
+                    # Camera segments are timestamped by when their frames arrived,
+                    # not by counting processed segments. When the model falls behind
+                    # and old frames are dropped, this keeps the displayed times equal
+                    # to real time instead of drifting by the number of dropped frames.
+                    newest_at = captured[-1][0]
+                    start_s = captured[0][0] - origin
+                    end_s = newest_at - origin
                     clip = Path(directory) / f"camera-{segment_index:04d}.mp4"
                     prepare_start = time.perf_counter()
                     try:
-                        camera_clip(list(captured), settings["target_fps"], clip)
+                        camera_clip(
+                            [frame for _, frame in captured],
+                            settings["target_fps"],
+                            clip,
+                        )
                         prepare_s = time.perf_counter() - prepare_start
-                        backlog = frame_queue.qsize() / settings["target_fps"]
+                        backlog = time.perf_counter() - newest_at
                         emit(
                             "segment",
                             state="processing",
@@ -432,7 +462,7 @@ async def websocket_endpoint(websocket: WebSocket):
                             decision=decision,
                             prepare_s=prepare_s,
                             backlog_s=backlog,
-                            lag_s=frame_queue.qsize() / settings["target_fps"],
+                            lag_s=time.perf_counter() - newest_at,
                         )
                     except Exception as error:
                         emit(
@@ -452,6 +482,11 @@ async def websocket_endpoint(websocket: WebSocket):
             except asyncio.CancelledError:
                 pass
             worker = None
+            # MLX keeps the high-water mark of every allocation for the life of
+            # the process. Without this, an idle session that once ran a large
+            # window keeps tens of GB reserved. The next run re-allocates its own
+            # working set within the first few segments.
+            mx.clear_cache()
         camera_frames = None
 
     try:
@@ -460,14 +495,15 @@ async def websocket_endpoint(websocket: WebSocket):
             incoming = await websocket.receive()
             if incoming.get("bytes") is not None:
                 if camera_frames is not None:
+                    stamped = (time.perf_counter(), incoming["bytes"])
                     try:
-                        camera_frames.put_nowait(incoming["bytes"])
+                        camera_frames.put_nowait(stamped)
                     except queue.Full:
                         try:
                             camera_frames.get_nowait()
                         except queue.Empty:
                             pass
-                        camera_frames.put_nowait(incoming["bytes"])
+                        camera_frames.put_nowait(stamped)
                         await send("queue", state="dropping", frames=camera_frames.qsize())
                 continue
             text = incoming.get("text")

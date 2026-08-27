@@ -135,6 +135,13 @@ Container timestamps often leave a few hundredths of a second after the final
 full segment. A trailing remainder shorter than 0.5 seconds is ignored instead
 of being presented as a meaningful observation.
 
+Camera segments are timestamped by when their frames arrived, and stream lag is
+measured against the newest frame in the segment just finished. Both stay
+correct when the model cannot keep up: dropped frames do not rewind the clock,
+and lag is not capped by the size of the frame queue. On a MacBook Pro M1 Max
+with a 1-second stride, lag grows without bound, which is the honest reading —
+that machine needs roughly 8 to 10 seconds per segment.
+
 For parity with the official whole-stream behavior, the gate currently replays
 the accumulated visual history for each segment. It does not yet carry Mamba
 state incrementally. Long-stream backlog and the cost of this replay are
@@ -154,7 +161,26 @@ curl -s -X POST http://127.0.0.1:8000/api/memory/reset-peak
 
 `peak_gb` is cumulative for the process, so reset it before an interval you
 want to attribute on its own. These numbers describe what MLX asked its
-allocator for. The macOS `footprint` of the same pid is larger, because it also
-counts Metal's reserved and cached device memory, so the two are not
-interchangeable; the pid is returned to let an external sampler read both at the
-same instant.
+allocator for. The macOS `footprint` of the same pid is larger; the pid is
+returned to let an external sampler read both at the same instant.
+
+The gap between them is MLX's own buffer cache, not Metal overhead. The cache
+holds the high-water mark of every allocation the process has made and is not
+returned when a run ends, so one run with a large context window keeps that
+memory reserved for as long as the process lives. Measured on a MacBook Pro
+M1 Max, a light camera session settled at 22 GB of footprint, and a single run
+with a 16-second window at 4 fps took it to 50 GB — while MLX reported a peak of
+22 GB. **Size a machine by the footprint of the heaviest configuration you
+intend to use, not by the MLX peak.**
+
+Stopping a run now calls `mx.clear_cache()`, which drops an idle session back to
+the weights (12 GB in that measurement). Clearing during a run is also safe but
+does not help on its own: the same configuration re-allocates its working set
+within a couple of minutes.
+
+```sh
+curl -s -X POST http://127.0.0.1:8000/api/memory/clear-cache
+```
+
+The measurements behind this are in
+[`kiarina/labs`](https://github.com/kiarina/labs/blob/main/2026/08/27/mage-vl-realtime-benchmark/README.md).
