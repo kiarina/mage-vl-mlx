@@ -210,67 +210,91 @@ footer { display: flex; justify-content: space-between; padding: 20px 4px 0; col
    so immersive mode restyles that one element rather than duplicating any of
    it. `.immersive` is applied alongside the Fullscreen API, and stands on its
    own where that API is unavailable for a div (iOS Safari), covering the
-   viewport instead. */
-.viewer-toolbar-right { display: flex; align-items: center; gap: 10px; }
-.icon-button { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; padding: 0; border: 1px solid rgba(120,190,200,.18); border-radius: 9px; background: rgba(120,190,200,.06); color: #9fd8d2; cursor: pointer; }
-.icon-button:hover { border-color: rgba(77,229,209,.42); color: #cdf3ee; }
+   viewport instead.
+
+   The camera image is the background: it covers the screen in either
+   orientation, and everything else floats over it as text rather than in
+   panels, so the picture is never boxed in. */
+.viewer-toolbar-right { display: flex; align-items: center; gap: 8px; }
+.icon-button { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; padding: 0; border: 0; border-radius: 8px; background: none; color: #6f8c93; cursor: pointer; }
+.icon-button:hover { color: #4de5d1; background: rgba(77,229,209,.08); }
 .immersive-controls { display: none; }
 
 .viewer-card.immersive {
   position: fixed; inset: 0; z-index: 60;
   margin: 0; border: 0; border-radius: 0;
-  background: #000;
-  display: grid; grid-template-rows: 1fr;
+  background: #000; display: block;
 }
 .viewer-card.immersive .viewer-toolbar,
 .viewer-card.immersive .timeline-header,
 .viewer-card.immersive .output-heading { display: none; }
+
 .viewer-card.immersive .video-stage {
   /* The stage keeps a 16/8.5 aspect ratio normally, which combined with a
-     height of 100% would compute a width far wider than the screen and push the
-     overlays out of view. Immersive mode fills the viewport instead. */
+     height of 100% would compute a width far wider than the screen and push
+     the overlays out of view. Immersive mode fills the viewport instead. */
   position: absolute; inset: 0; aspect-ratio: auto;
   width: 100%; height: 100%; min-height: 0;
-  border: 0; border-radius: 0;
+  border: 0; border-radius: 0; background: #000;
 }
 .viewer-card.immersive .video-stage video { width: 100%; height: 100%; object-fit: cover; }
+
+/* Text floats on the picture: no card, no panel, just a soft shade at the
+   bottom so words stay legible over a bright frame. */
 .viewer-card.immersive .insight-dock {
-  position: absolute; inset: auto 0 0 0;
-  display: flex; flex-direction: column; gap: 8px;
-  padding: 14px 16px calc(16px + env(safe-area-inset-bottom));
-  border: 0; background: linear-gradient(to top, rgba(0,0,0,.86) 55%, rgba(0,0,0,0));
-  max-height: 62%;
+  position: absolute; inset: auto 0 0 0; z-index: 2;
+  display: flex; flex-direction: column-reverse; gap: 10px;
+  padding: 0 18px calc(22px + env(safe-area-inset-bottom));
+  border: 0; background: linear-gradient(to top, rgba(0,0,0,.55), rgba(0,0,0,0));
+  pointer-events: none;
 }
 .viewer-card.immersive .live-output,
-.viewer-card.immersive .inline-timeline { border: 0; background: none; padding: 0; min-height: 0; }
-.viewer-card.immersive .live-text {
-  font-size: 19px; line-height: 1.35; color: #f2fbfa;
-  text-shadow: 0 1px 8px rgba(0,0,0,.9);
+.viewer-card.immersive .inline-timeline {
+  border: 0; background: none; padding: 0; min-height: 0; overflow: visible;
 }
-.viewer-card.immersive .timeline-entries { max-height: 38vh; overflow-y: auto; gap: 6px; }
-.viewer-card.immersive .timeline-item { background: rgba(10,20,24,.72); border-color: rgba(120,190,200,.2); }
-/* Both status chips move to the left so the top right belongs to the controls,
-   which would otherwise sit under the overlay that covers the lower screen. */
+.viewer-card.immersive .live-text {
+  margin: 0; font-size: 21px; line-height: 1.3; font-weight: 600; color: #fff;
+  text-shadow: 0 2px 12px rgba(0,0,0,.95), 0 0 3px rgba(0,0,0,.8);
+}
+.viewer-card.immersive .timeline-entries {
+  display: flex; flex-direction: column-reverse; gap: 4px;
+  max-height: 34vh; overflow: hidden; padding: 0; pointer-events: auto;
+}
+.viewer-card.immersive .timeline-item,
+.viewer-card.immersive .timeline-empty {
+  border: 0; background: none; padding: 0; box-shadow: none;
+  display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;
+  color: rgba(255,255,255,.82);
+  text-shadow: 0 1px 10px rgba(0,0,0,.95);
+}
+.viewer-card.immersive .timeline-item .timeline-window { font-size: 11px; color: rgba(255,255,255,.5); }
+.viewer-card.immersive .timeline-item .timeline-label { font-size: 15px; font-weight: 600; color: #fff; }
+.viewer-card.immersive .timeline-item .timeline-meta { font-size: 11px; color: rgba(255,255,255,.45); }
+/* Older lines recede rather than being cut off at an edge. */
+.viewer-card.immersive .timeline-entries > *:nth-child(n+4) { opacity: .55; }
+.viewer-card.immersive .timeline-entries > *:nth-child(n+6) { opacity: .3; }
+.viewer-card.immersive .timeline-entries > *:nth-child(n+8) { display: none; }
+
 .viewer-card.immersive .stage-overlay {
-  inset: calc(12px + env(safe-area-inset-top)) 14px auto;
-  justify-content: flex-start; gap: 8px;
+  inset: calc(14px + env(safe-area-inset-top)) 16px auto;
+  justify-content: flex-start; gap: 8px; z-index: 2;
 }
 .viewer-card.immersive .immersive-controls {
   position: absolute; z-index: 3;
-  top: calc(12px + env(safe-area-inset-top)); right: 14px;
+  top: calc(14px + env(safe-area-inset-top)); right: 16px;
   display: flex; gap: 8px;
 }
 .immersive-action {
-  min-height: 40px; padding: 0 18px; border-radius: 999px;
-  border: 1px solid rgba(77,229,209,.5); background: rgba(77,229,209,.9);
-  color: #04211f; font-size: 13px; font-weight: 700; cursor: pointer;
+  min-height: 36px; padding: 0 16px; border-radius: 999px;
+  border: 1px solid rgba(255,255,255,.28); background: rgba(0,0,0,.45);
+  color: #fff; font-size: 13px; font-weight: 600; cursor: pointer;
+  backdrop-filter: blur(8px);
 }
-.immersive-action.ghost { background: rgba(8,16,20,.8); border-color: rgba(160,200,205,.35); color: #d7ecea; font-weight: 600; }
+.immersive-action:hover { border-color: rgba(255,255,255,.5); }
+.immersive-action.primary { border-color: rgba(77,229,209,.7); background: rgba(77,229,209,.85); color: #04211f; }
 .immersive-action[disabled] { opacity: .45; }
 
-/* The stage keeps its own aspect ratio outside immersive mode; inside it must
-   fill whatever the device gives us, including a portrait phone. */
 @media (max-width: 767px) {
-  .viewer-card.immersive .live-text { font-size: 17px; }
-  .viewer-card.immersive .timeline-entries { max-height: 30vh; }
+  .viewer-card.immersive .live-text { font-size: 19px; }
+  .viewer-card.immersive .timeline-entries { max-height: 28vh; }
 }

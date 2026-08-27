@@ -19,7 +19,7 @@ import time
 import uuid
 
 from fastapi import FastAPI, File, HTTPException, UploadFile, WebSocket
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 import mlx.core as mx
 
@@ -203,7 +203,21 @@ def camera_clip(images: list[bytes], fps: float, output: Path) -> None:
 
 @app.get("/")
 def index():
-    return FileResponse(STATIC / "index.html")
+    """Serve the page with the current asset mtimes stamped into the URLs.
+
+    The stylesheet was cached across a release once and the new markup rendered
+    against old rules, which is hard to recognise as a caching problem. Stamping
+    both assets removes the class of bug rather than the instance.
+    """
+    html = (STATIC / "index.html").read_text()
+    for name in ("styles.css", "app.js"):
+        stamp = int((STATIC / name).stat().st_mtime)
+        html = re.sub(
+            rf"/static/{re.escape(name)}(\?v=[^\"']*)?",
+            f"/static/{name}?v={stamp}",
+            html,
+        )
+    return HTMLResponse(html)
 
 
 @app.get("/api/health")

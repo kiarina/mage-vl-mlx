@@ -274,6 +274,7 @@ function syncImmersiveControls() {
   elements.immersiveButton.setAttribute(
     "aria-label", active ? "Exit fullscreen" : "Enter fullscreen");
   elements.immersiveToggle.textContent = running ? "Stop" : "Start";
+  elements.immersiveToggle.classList.toggle("primary", !running);
 }
 
 function setImmersive(active) {
