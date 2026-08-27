@@ -307,6 +307,11 @@ async def websocket_endpoint(websocket: WebSocket):
     stop = threading.Event()
     camera_frames: queue.Queue[tuple[float, bytes]] | None = None
     worker: asyncio.Task | None = None
+    # A window that holds fewer frames than requested has two very different
+    # causes: the browser failed to deliver them, or the model fell behind and
+    # this server threw them away to keep the picture live. Only the receive
+    # loop can tell them apart, so it counts both for the UI to report.
+    camera_counts = {"received": 0, "dropped": 0}
 
     async def send(kind: str, **data) -> None:
         async with send_lock:
@@ -504,6 +509,8 @@ async def websocket_endpoint(websocket: WebSocket):
                             backlog_s=backlog,
                             frames=len(captured),
                             effective_fps=effective_fps,
+                            received=camera_counts["received"],
+                            dropped=camera_counts["dropped"],
                         )
                         if settings["window_s"] > settings["segment_s"]:
                             session.reset()
@@ -537,6 +544,8 @@ async def websocket_endpoint(websocket: WebSocket):
                             lag_s=time.perf_counter() - newest_at,
                             frames=len(captured),
                             effective_fps=effective_fps,
+                            received=camera_counts["received"],
+                            dropped=camera_counts["dropped"],
                         )
                     except Exception as error:
                         emit(
@@ -571,6 +580,7 @@ async def websocket_endpoint(websocket: WebSocket):
             if incoming.get("bytes") is not None:
                 if camera_frames is not None:
                     stamped = (time.perf_counter(), incoming["bytes"])
+                    camera_counts["received"] += 1
                     try:
                         camera_frames.put_nowait(stamped)
                     except queue.Full:
@@ -578,8 +588,15 @@ async def websocket_endpoint(websocket: WebSocket):
                             camera_frames.get_nowait()
                         except queue.Empty:
                             pass
+                        camera_counts["dropped"] += 1
                         camera_frames.put_nowait(stamped)
-                        await send("queue", state="dropping", frames=camera_frames.qsize())
+                        await send(
+                            "queue",
+                            state="dropping",
+                            frames=camera_frames.qsize(),
+                            received=camera_counts["received"],
+                            dropped=camera_counts["dropped"],
+                        )
                 continue
             text = incoming.get("text")
             if text is None:
@@ -631,6 +648,8 @@ async def websocket_endpoint(websocket: WebSocket):
                         ),
                     )
                     continue
+                camera_counts["received"] = 0
+                camera_counts["dropped"] = 0
                 camera_frames = queue.Queue(maxsize=max(
                     16, round(settings["target_fps"] * settings["segment_s"] * 4)
                 ))

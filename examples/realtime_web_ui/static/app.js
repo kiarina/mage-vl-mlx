@@ -221,6 +221,7 @@ let mode = "camera";
 let delayTimer = null;
 let recentWork = [];
 let recentResponse = [];
+let cameraFrameCounts = { received: 0, dropped: 0 };
 let dvr = null;
 let socket;
 let uploaded = null;
@@ -535,15 +536,39 @@ function codecWindowFrames() {
 // A requested capture rate is a request, not a guarantee: the browser encodes
 // one JPEG per frame and falls behind at high rates. Show what actually
 // arrived so a run at 30 fps is not mistaken for 30 fps of evidence.
-function showMeasuredCapture(frames, fps) {
+function showMeasuredCapture(frames, fps, spanS) {
   if (mode !== "camera" || !running) return;
   const requested = Number(elements.targetFps.value);
   const short = fps < requested * 0.85;
+  // A thinned window is only the browser's fault when every frame it sent was
+  // used. Once the model falls behind, this server drops the oldest frames to
+  // keep the picture live, and blaming the browser for that would send anyone
+  // tuning the capture rate after the wrong problem.
+  const share = droppedShare();
+  const stretched = spanS != null && spanS > 0
+    ? ` covering ${spanS.toFixed(1)}s` : "";
   elements.samplingNote.textContent =
     `Capturing ${fps.toFixed(1)} fps of the ${requested} fps requested; `
-    + `${frames} frames in this window.`
-    + (short ? " The browser cannot keep up at this rate." : "");
-  elements.samplingNote.classList.toggle("warn", short);
+    + `${frames} frames in this window${stretched}.`
+    + (share > 0.01
+      ? ` The model is behind, so ${(share * 100).toFixed(0)}% of camera frames`
+        + " were dropped to stay live."
+      : short ? " The browser cannot keep up at this rate." : "");
+  elements.samplingNote.classList.toggle("warn", short || share > 0.01);
+}
+
+function noteFrameCounts(message) {
+  if (message.received != null) cameraFrameCounts.received = message.received;
+  if (message.dropped != null) cameraFrameCounts.dropped = message.dropped;
+}
+
+function droppedShare() {
+  const { received, dropped } = cameraFrameCounts;
+  return received > 0 ? dropped / received : 0;
+}
+
+function droppedNote() {
+  return `dropping ${(droppedShare() * 100).toFixed(0)}% of frames`;
 }
 
 function syncBackendControls() {
@@ -669,6 +694,7 @@ async function start() {
   clearLive();
   resetRtf();
   recentResponse = [];
+  cameraFrameCounts = { received: 0, dropped: 0 };
   lastSeekAt = 0;
   if (mode === "file") {
     if (!uploaded) { elements.uploadDetail.textContent = "Choose a video first"; return; }
@@ -755,7 +781,11 @@ function handleMessage(message) {
     currentSegment = message.segment || currentSegment;
     elements.segmentNumber.textContent = `SEG ${String(currentSegment).padStart(2, "0")}`;
     elements.segmentState.textContent = message.state.toUpperCase();
-    if (message.effective_fps) showMeasuredCapture(message.frames, message.effective_fps);
+    noteFrameCounts(message);
+    if (message.effective_fps) {
+      showMeasuredCapture(message.frames, message.effective_fps,
+        message.end_s - message.start_s);
+    }
     document.querySelector(".video-stage").classList.toggle("processing", message.state === "processing");
     if (message.state === "error") elements.liveText.textContent = message.message;
   } else if (message.type === "token") {
@@ -776,7 +806,8 @@ function handleMessage(message) {
   } else if (message.type === "stream" && ["complete", "stopped"].includes(message.state)) {
     stop(false);
   } else if (message.type === "queue") {
-    elements.lagNote.textContent = "dropping old frames";
+    noteFrameCounts(message);
+    elements.lagNote.textContent = droppedNote();
   } else if (message.type === "error") {
     elements.liveText.textContent = message.message;
     elements.segmentState.textContent = "ERROR";
@@ -799,8 +830,14 @@ function renderResult(message) {
   elements.firstMetric.textContent = firstText == null ? "SKIP" : `${firstText.toFixed(2)}s`;
   elements.fullMetric.textContent = metrics.generation_s == null ? "SKIP" : `${fullResponse.toFixed(2)}s`;
   elements.tokenCounter.textContent = `${metrics.generated_tokens} TOKENS`;
+  noteFrameCounts(message);
   elements.lagMetric.textContent = `${message.lag_s.toFixed(2)}s`;
-  elements.lagNote.textContent = message.lag_s < 0.1 ? "caught up" : "behind live edge";
+  // The note has to survive the next result. Reading the drop share here rather
+  // than only on the queue message keeps it from flickering back to "behind
+  // live edge" between the drops that caused the lag in the first place.
+  elements.lagNote.textContent = message.lag_s < 0.1 ? "caught up"
+    : droppedShare() > 0.01 ? droppedNote()
+    : "behind live edge";
   elements.segmentState.textContent = decision.accepted
     ? (decision.reason === "event" ? "EVENT" : "RESPONDED")
     : decision.reason.toUpperCase();
