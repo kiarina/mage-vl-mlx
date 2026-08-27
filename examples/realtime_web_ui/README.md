@@ -49,7 +49,10 @@ The button beside the READY chip switches the viewer to fullscreen. The camera
 image becomes the background, covering the screen in either orientation, and the
 live response and the recent observations float over it as text rather than in
 panels — older lines fade out instead of being cut off at an edge. Start/Stop
-and Exit stay in the corner so a phone never has to leave the view.
+and Exit stay in the corner so a phone never has to leave the view, along with a
+switch that cycles through the cameras the browser offers — front to rear on a
+phone. It appears only when there is more than one to choose from, and switching
+mid-run keeps the stream going.
 
 Nothing else about the layout changes: it is the same viewer element, restyled,
 and the desktop layout is untouched. Where the Fullscreen API will not take a

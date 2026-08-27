@@ -12,7 +12,7 @@ const elements = {
   presetSelect: $("presetSelect"),
   viewerCard: document.querySelector(".viewer-card"),
   immersiveButton: $("immersiveButton"), immersiveToggle: $("immersiveToggle"),
-  immersiveExit: $("immersiveExit"),
+  immersiveExit: $("immersiveExit"), immersiveCamera: $("immersiveCamera"),
   cooldownSeconds: $("cooldownSeconds"), showIgnored: $("showIgnored"),
   backend: $("backend"), segmentSeconds: $("segmentSeconds"), windowSeconds: $("windowSeconds"),
   targetFps: $("targetFps"), numFrames: $("numFrames"), maxTokens: $("maxTokens"), gateThreshold: $("gateThreshold"),
@@ -257,6 +257,7 @@ function setMode(nextMode) {
   elements.cameraControls.classList.toggle("hidden", !camera);
   clampGateThresholdToBackend();
   syncBackendControls();
+  syncImmersiveControls();
   showSource();
 }
 
@@ -268,6 +269,12 @@ function immersiveActive() {
   return elements.viewerCard.classList.contains("immersive");
 }
 
+// The device list only carries real entries once permission has been granted,
+// so the switch appears when there is actually something to switch between.
+function cameraOptions() {
+  return [...elements.cameraDevice.options].filter((option) => option.value);
+}
+
 function syncImmersiveControls() {
   const active = immersiveActive();
   elements.immersiveButton.setAttribute("aria-pressed", String(active));
@@ -275,6 +282,31 @@ function syncImmersiveControls() {
     "aria-label", active ? "Exit fullscreen" : "Enter fullscreen");
   elements.immersiveToggle.textContent = running ? "Stop" : "Start";
   elements.immersiveToggle.classList.toggle("primary", !running);
+  const options = cameraOptions();
+  elements.immersiveCamera.classList.toggle(
+    "hidden", mode !== "camera" || options.length < 2);
+  const current = options.find((option) => option.value === elements.cameraDevice.value);
+  elements.immersiveCamera.title = current
+    ? `Switch camera (now: ${current.textContent})`
+    : "Switch camera";
+}
+
+async function cycleCamera() {
+  const options = cameraOptions();
+  if (options.length < 2) return;
+  const index = options.findIndex((option) => option.value === elements.cameraDevice.value);
+  // An unset value means the browser default, which is one of these devices;
+  // stepping from -1 lands on the first named one.
+  const next = options[(index + 1) % options.length];
+  elements.cameraDevice.value = next.value;
+  // Label the button for the device now selected before awaiting the stream,
+  // so the control never describes the camera it just left.
+  syncImmersiveControls();
+  try {
+    await enableCamera();
+  } catch (error) {
+    elements.liveText.textContent = `Could not switch camera: ${error.message}`;
+  }
 }
 
 function setImmersive(active) {
@@ -450,6 +482,7 @@ async function enableCamera() {
     option.textContent = device.label || `Camera ${index + 1}`;
     elements.cameraDevice.append(option);
   });
+  syncImmersiveControls();
   showSource();
 }
 
@@ -590,6 +623,7 @@ function updateClock() {
 
 elements.immersiveButton.addEventListener("click", () => setImmersive(!immersiveActive()));
 elements.immersiveExit.addEventListener("click", () => setImmersive(false));
+elements.immersiveCamera.addEventListener("click", () => { cycleCamera(); });
 elements.immersiveToggle.addEventListener("click", () => {
   if (running) stop(); else start();
 });

@@ -293,6 +293,9 @@ footer { display: flex; justify-content: space-between; padding: 20px 4px 0; col
 .immersive-action:hover { border-color: rgba(255,255,255,.5); }
 .immersive-action.primary { border-color: rgba(77,229,209,.7); background: rgba(77,229,209,.85); color: #04211f; }
 .immersive-action[disabled] { opacity: .45; }
+.immersive-action.hidden { display: none; }
+/* The camera switch is an icon, so it is square rather than pill-shaped. */
+#immersiveCamera { width: 36px; padding: 0; display: inline-flex; align-items: center; justify-content: center; }
 
 @media (max-width: 767px) {
   .viewer-card.immersive .live-text { font-size: 19px; }
