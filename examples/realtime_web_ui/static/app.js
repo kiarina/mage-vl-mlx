@@ -19,6 +19,111 @@ const elements = {
   gateMetric: $("gateMetric"), firstMetric: $("firstMetric"), fullMetric: $("fullMetric"),
   lagMetric: $("lagMetric"), lagNote: $("lagNote"), timelineEntries: $("timelineEntries"),
   clearButton: $("clearButton"),
+  helpDialog: $("helpDialog"), helpTitle: $("helpTitle"), helpBody: $("helpBody"), helpClose: $("helpClose"),
+};
+
+const SOCCER_QUESTION = `Classify whether this video window contains the moment a goal is scored in a soccer match.
+
+Return exactly one lowercase label:
+goal — the ball crosses the goal line and a goal is scored
+none — anything else, including buildup, missed shots, replays,
+or celebrations without the scoring moment
+
+Output only goal or none.`;
+
+const HELP_CONTENT = {
+  "analysis-mode": {
+    title: "Analysis mode",
+    paragraphs: [
+      "Describe every response streams the model's text into Live Response for each window that passes the gate.",
+      "Event filter treats the model as a short-label classifier. It buffers the answer until generation finishes, then shows only results whose first normalized label matches Trigger label. Question is still required: it defines what event the model should classify.",
+    ],
+  },
+  question: {
+    title: "Question",
+    paragraphs: [
+      "The instruction sent to Mage-VL together with every video window. Keep it specific about what to inspect and how to answer.",
+      "For Event filter, explicitly define both the trigger and non-trigger cases, require exact labels, and keep VLM max output small. The Goal preset uses this complete example:",
+    ],
+    example: SOCCER_QUESTION,
+  },
+  "trigger-label": {
+    title: "Trigger label",
+    paragraphs: [
+      "The exact first label that counts as a detected event. Matching is case-insensitive after surrounding punctuation is removed.",
+      "The Question must instruct the model to return this same label. Changing the field alone does not rewrite the Question.",
+    ],
+  },
+  "ignore-label": {
+    title: "Ignore label",
+    paragraphs: [
+      "The exact label for windows that do not contain the target event. These results never replace Live Response in Event filter mode.",
+      "Use a short, unambiguous value such as none and include the same value in the Question.",
+    ],
+  },
+  cooldown: {
+    title: "Cooldown",
+    paragraphs: [
+      "Seconds during which repeated trigger matches are suppressed after an accepted event. This prevents overlapping windows from reporting the same real-world event several times.",
+      "A longer cooldown merges more detections but can hide distinct events that occur close together.",
+    ],
+  },
+  "ignored-results": {
+    title: "Ignored results",
+    paragraphs: [
+      "Show in timeline keeps rejected labels, gate skips, and cooldown suppressions in Observations for diagnosis. They remain excluded from Live Response.",
+      "Turn this off for a clean demo; turn it on while tuning prompts, labels, and thresholds.",
+    ],
+  },
+  backend: {
+    title: "Backend",
+    paragraphs: [
+      "Frames samples ordinary decoded frames and works with both uploaded files and the browser camera.",
+      "Codec uses Mage-VL's codec-native sparse representation through the local cv-preinfer Docker wrapper. It is available for uploaded files only and controls temporal sampling internally.",
+    ],
+  },
+  "decision-stride": {
+    title: "Decision stride",
+    paragraphs: [
+      "How often a new inference decision is scheduled along the stream. A 1 second stride evaluates once per second; a 4 second stride evaluates once every four seconds.",
+      "Shorter strides react sooner but run the model more often and can increase backlog. The Context window can be longer than the stride, producing overlapping windows.",
+    ],
+  },
+  "context-window": {
+    title: "Context window",
+    paragraphs: [
+      "How much recent video each decision can inspect. For example, a 1 second stride with a 4 second context evaluates the latest four seconds once per second.",
+      "Longer context can clarify an event but increases visual work and latency. It is always kept at least as long as Decision stride.",
+    ],
+  },
+  "capture-rate": {
+    title: "Capture rate",
+    paragraphs: [
+      "Frames sampled per second before sending a window to Mage-VL. It applies to both uploaded files and camera input with the Frames backend.",
+      "Higher rates preserve faster motion but increase visual tokens, memory, and latency. Codec performs its own selection, so this control is disabled there.",
+    ],
+  },
+  "max-frames": {
+    title: "Max frames",
+    paragraphs: [
+      "Maximum sampled frames retained in one Frames-backend window after applying Capture rate. The effective count is the smaller of captured frames and this limit.",
+      "Larger values can improve temporal coverage but substantially increase prompt length, memory, and latency. Codec does not use this setting.",
+    ],
+  },
+  "max-output": {
+    title: "VLM max output",
+    paragraphs: [
+      "The maximum number of new text tokens Mage-VL may generate for one window (max_new_tokens). It is a ceiling, not a required response length.",
+      "Use 1–4 tokens for exact-label Event filter prompts. Descriptive questions usually need a larger limit such as 64 tokens.",
+    ],
+  },
+  "gate-threshold": {
+    title: "Gate threshold",
+    paragraphs: [
+      "The minimum StreamMind p(speak) score required before running VLM generation. A value of 0 sends every window to Mage-VL; higher values skip more windows.",
+      "The gate sees video only and does not read Question. Its score is not a calibrated event probability, so start at 0 when recall matters and raise it only after measuring missed events.",
+    ],
+  },
 };
 
 let mode = "file";
@@ -42,6 +147,25 @@ function connect() {
 function setSystem(text, online) {
   elements.systemStatus.textContent = text;
   elements.connectionDot.classList.toggle("online", online);
+}
+
+function openHelp(key) {
+  const content = HELP_CONTENT[key];
+  if (!content) return;
+  elements.helpTitle.textContent = content.title;
+  elements.helpBody.replaceChildren();
+  content.paragraphs.forEach((text) => {
+    const paragraph = document.createElement("p");
+    paragraph.textContent = text;
+    elements.helpBody.append(paragraph);
+  });
+  if (content.example) {
+    const example = document.createElement("pre");
+    example.className = "help-example";
+    example.textContent = content.example;
+    elements.helpBody.append(example);
+  }
+  elements.helpDialog.showModal();
 }
 
 function setMode(nextMode) {
@@ -116,7 +240,7 @@ function keepWindowAtLeastStride() {
 function applySoccerPreset() {
   if (running) return;
   elements.analysisMode.value = "event";
-  elements.question.value = "Classify whether this video window contains the moment a goal is scored in a soccer match. Return exactly one lowercase label: goal if the ball crosses the goal line and a goal is scored; none for anything else, including buildup, missed shots, replays, or celebrations without the scoring moment. Output only goal or none.";
+  elements.question.value = SOCCER_QUESTION;
   elements.backend.value = "frames";
   elements.segmentSeconds.value = "1";
   elements.windowSeconds.value = "4";
@@ -319,6 +443,13 @@ elements.gateThreshold.addEventListener("input", () => { elements.thresholdValue
 elements.startButton.addEventListener("click", () => start().catch((error) => { elements.liveText.textContent = error.message; stop(); }));
 elements.stopButton.addEventListener("click", stop);
 elements.clearButton.addEventListener("click", clearLive);
+document.querySelectorAll(".help-button").forEach((button) => {
+  button.addEventListener("click", () => openHelp(button.dataset.help));
+});
+elements.helpClose.addEventListener("click", () => elements.helpDialog.close());
+elements.helpDialog.addEventListener("click", (event) => {
+  if (event.target === elements.helpDialog) elements.helpDialog.close();
+});
 window.addEventListener("beforeunload", () => { if (cameraStream) cameraStream.getTracks().forEach((track) => track.stop()); });
 
 connect();

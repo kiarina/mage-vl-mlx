@@ -101,16 +101,17 @@
         </div>
 
         <div class="mode-row">
-          <label>Analysis mode
+          <div class="setting-field">
+            <div class="label-row"><label for="analysisMode">Analysis mode</label><button class="help-button" type="button" data-help="analysis-mode" aria-label="About Analysis mode" aria-haspopup="dialog" aria-controls="helpDialog">?</button></div>
             <select id="analysisMode">
               <option value="describe">Describe every response</option>
               <option value="event">Event filter</option>
             </select>
-          </label>
+          </div>
           <button id="soccerPreset" class="preset-button" type="button">⚽ Goal preset</button>
         </div>
 
-        <label class="field-label" for="question">QUESTION</label>
+        <div class="field-label label-row"><label for="question">QUESTION</label><button class="help-button" type="button" data-help="question" aria-label="About Question" aria-haspopup="dialog" aria-controls="helpDialog">?</button></div>
         <textarea id="question" rows="4">Describe what is happening. Focus on changes and motion.</textarea>
 
         <div id="eventControls" class="event-controls hidden">
@@ -119,30 +120,36 @@
             <span class="filter-chip">BUFFERED</span>
           </div>
           <div class="setting-grid compact-grid">
-            <label>Trigger label
+            <div class="setting-field">
+              <div class="label-row"><label for="triggerLabel">Trigger label</label><button class="help-button" type="button" data-help="trigger-label" aria-label="About Trigger label" aria-haspopup="dialog" aria-controls="helpDialog">?</button></div>
               <input id="triggerLabel" type="text" value="goal" autocomplete="off" spellcheck="false">
-            </label>
-            <label>Ignore label
+            </div>
+            <div class="setting-field">
+              <div class="label-row"><label for="ignoreLabel">Ignore label</label><button class="help-button" type="button" data-help="ignore-label" aria-label="About Ignore label" aria-haspopup="dialog" aria-controls="helpDialog">?</button></div>
               <input id="ignoreLabel" type="text" value="none" autocomplete="off" spellcheck="false">
-            </label>
-            <label>Cooldown
+            </div>
+            <div class="setting-field">
+              <div class="label-row"><label for="cooldownSeconds">Cooldown</label><button class="help-button" type="button" data-help="cooldown" aria-label="About Cooldown" aria-haspopup="dialog" aria-controls="helpDialog">?</button></div>
               <input id="cooldownSeconds" type="number" min="0" max="120" step="1" value="8">
-            </label>
-            <label class="check-field">Ignored results
-              <span><input id="showIgnored" type="checkbox"> Show in timeline</span>
-            </label>
+            </div>
+            <div class="setting-field check-field">
+              <div class="label-row"><span>Ignored results</span><button class="help-button" type="button" data-help="ignored-results" aria-label="About Ignored results" aria-haspopup="dialog" aria-controls="helpDialog">?</button></div>
+              <label for="showIgnored"><input id="showIgnored" type="checkbox"> Show in timeline</label>
+            </div>
           </div>
           <p class="field-note">Responses are held until complete, then ignored unless the first label matches.</p>
         </div>
 
         <div class="setting-grid">
-          <label>Backend
+          <div class="setting-field">
+            <div class="label-row"><label for="backend">Backend</label><button class="help-button" type="button" data-help="backend" aria-label="About Backend" aria-haspopup="dialog" aria-controls="helpDialog">?</button></div>
             <select id="backend">
               <option value="frames">Frames · live</option>
               <option value="codec">Codec · container</option>
             </select>
-          </label>
-          <label>Decision stride
+          </div>
+          <div class="setting-field">
+            <div class="label-row"><label for="segmentSeconds">Decision stride</label><button class="help-button" type="button" data-help="decision-stride" aria-label="About Decision stride" aria-haspopup="dialog" aria-controls="helpDialog">?</button></div>
             <select id="segmentSeconds">
               <option value="0.5">0.5 second</option>
               <option value="1">1 second</option>
@@ -150,8 +157,9 @@
               <option value="4" selected>4 seconds</option>
               <option value="8">8 seconds</option>
             </select>
-          </label>
-          <label>Context window
+          </div>
+          <div class="setting-field">
+            <div class="label-row"><label for="windowSeconds">Context window</label><button class="help-button" type="button" data-help="context-window" aria-label="About Context window" aria-haspopup="dialog" aria-controls="helpDialog">?</button></div>
             <select id="windowSeconds">
               <option value="1">1 second</option>
               <option value="2">2 seconds</option>
@@ -162,8 +170,9 @@
               <option value="12">12 seconds</option>
               <option value="16">16 seconds</option>
             </select>
-          </label>
-          <label>Capture rate
+          </div>
+          <div class="setting-field">
+            <div class="label-row"><label for="targetFps">Capture rate</label><button class="help-button" type="button" data-help="capture-rate" aria-label="About Capture rate" aria-haspopup="dialog" aria-controls="helpDialog">?</button></div>
             <select id="targetFps">
               <option value="0.5">0.5 fps</option>
               <option value="1">1 fps</option>
@@ -171,8 +180,9 @@
               <option value="4">4 fps</option>
               <option value="8">8 fps</option>
             </select>
-          </label>
-          <label>Max frames
+          </div>
+          <div class="setting-field">
+            <div class="label-row"><label for="numFrames">Max frames</label><button class="help-button" type="button" data-help="max-frames" aria-label="About Max frames" aria-haspopup="dialog" aria-controls="helpDialog">?</button></div>
             <select id="numFrames">
               <option value="8">8 frames</option>
               <option value="16" selected>16 frames</option>
@@ -183,8 +193,9 @@
               <option value="192">192 frames</option>
               <option value="256">256 frames</option>
             </select>
-          </label>
-          <label>VLM max output
+          </div>
+          <div class="setting-field">
+            <div class="label-row"><label for="maxTokens">VLM max output</label><button class="help-button" type="button" data-help="max-output" aria-label="About VLM max output" aria-haspopup="dialog" aria-controls="helpDialog">?</button></div>
             <select id="maxTokens">
               <option value="1">1 token</option>
               <option value="2">2 tokens</option>
@@ -196,13 +207,14 @@
               <option value="80">80 tokens</option>
               <option value="128">128 tokens</option>
             </select>
-          </label>
+          </div>
         </div>
         <p id="samplingNote" class="field-note sampling-note">Frames backend samples both file and camera input at this rate, capped by Max frames.</p>
 
-        <label class="threshold-label" for="gateThreshold">
-          <span>Gate threshold</span><b id="thresholdValue">0.00</b>
-        </label>
+        <div class="threshold-label">
+          <div class="label-row"><label for="gateThreshold">Gate threshold</label><button class="help-button" type="button" data-help="gate-threshold" aria-label="About Gate threshold" aria-haspopup="dialog" aria-controls="helpDialog">?</button></div>
+          <b id="thresholdValue">0.00</b>
+        </div>
         <input id="gateThreshold" type="range" min="0" max="1" step="0.01" value="0">
         <p class="field-note">0 describes every segment. Raise it to use StreamMind as a pre-filter.</p>
 
@@ -222,7 +234,15 @@
 
     <footer><span>Runs locally on Apple Silicon</span><span>Video and camera data never leave this machine</span></footer>
   </main>
+  <dialog id="helpDialog" class="help-dialog" aria-labelledby="helpTitle">
+    <div class="help-dialog-card">
+      <button id="helpClose" class="help-close" type="button" aria-label="Close help">×</button>
+      <p class="eyebrow">SETTING GUIDE</p>
+      <h2 id="helpTitle"></h2>
+      <div id="helpBody" class="help-body"></div>
+    </div>
+  </dialog>
   <canvas id="cameraCanvas" hidden></canvas>
-  <script src="/static/app.js"></script>
+  <script src="/static/app.js?v=20260827-help2"></script>
 </body>
 </html>

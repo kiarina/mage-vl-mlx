@@ -41,7 +41,8 @@ backend, decision stride, rolling context window, capture rate, maximum frames,
 gate threshold, generation limit, and question. The context window is always
 at least as long as the decision stride. `VLM max output` is
 `max_new_tokens`: the maximum number of response tokens generated for one
-window.
+window. The `?` buttons beside the controls explain their runtime and quality
+tradeoffs; Question help also includes the complete soccer event-filter prompt.
 
 Capture rate applies to both uploaded files and the browser camera when using
 the frames backend. `Max frames` caps the frames retained after that temporal
