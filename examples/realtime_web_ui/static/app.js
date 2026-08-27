@@ -177,7 +177,10 @@ function setMode(nextMode) {
   elements.fileControls.classList.toggle("hidden", camera);
   elements.cameraControls.classList.toggle("hidden", !camera);
   elements.backend.disabled = camera;
-  if (camera) elements.backend.value = "frames";
+  if (camera) {
+    elements.backend.value = "frames";
+    clampGateThresholdToBackend();
+  }
   syncBackendControls();
   showSource();
 }
@@ -214,6 +217,18 @@ function setAnalysisMode() {
   elements.eventControls.classList.toggle("hidden", !eventMode);
 }
 
+// The gate scores frames input near zero, so a threshold calibrated for codec
+// would silently skip every window. Camera mode is frames-only, so drop the
+// threshold to 0 there and let the generated label make the decision.
+const FRAMES_MAX_USEFUL_GATE = 0.002;
+
+function clampGateThresholdToBackend() {
+  if (elements.backend.value !== "frames") return;
+  if (Number(elements.gateThreshold.value) <= FRAMES_MAX_USEFUL_GATE) return;
+  elements.gateThreshold.value = "0";
+  elements.thresholdValue.textContent = "0.00";
+}
+
 function syncBackendControls() {
   const codec = elements.backend.value === "codec";
   elements.targetFps.disabled = codec;
@@ -241,18 +256,22 @@ function applySoccerPreset() {
   if (running) return;
   elements.analysisMode.value = "event";
   elements.question.value = SOCCER_QUESTION;
-  elements.backend.value = "frames";
+  // The gate only separates content types on codec input. With frames it never
+  // rises above ~0.002 on soccer footage, so any non-zero threshold silently
+  // suppressed every detection. Measured in kiarina/labs.
+  elements.backend.value = mode === "camera" ? "frames" : "codec";
   elements.segmentSeconds.value = "1";
   elements.windowSeconds.value = "4";
   elements.targetFps.value = "2";
   elements.numFrames.value = "16";
-  elements.gateThreshold.value = "0.1";
+  elements.gateThreshold.value = "0.3";
   elements.maxTokens.value = "2";
   elements.triggerLabel.value = "goal";
   elements.ignoreLabel.value = "none";
   elements.cooldownSeconds.value = "8";
   elements.showIgnored.checked = false;
-  elements.thresholdValue.textContent = "0.10";
+  elements.thresholdValue.textContent = "0.30";
+  clampGateThresholdToBackend();
   setAnalysisMode();
   syncBackendControls();
 }

@@ -74,8 +74,10 @@ The **Goal preset** provides a starting point for soccer highlights:
 
 ### Concrete example: showing only soccer goals
 
-Choose a match video or camera, click **Goal preset**, and start analysis. Once
-per second, the UI evaluates the latest window of up to four seconds. The
+Choose a match video, click **Goal preset**, and start analysis. Once per
+second, the UI evaluates the latest window of up to four seconds. The preset
+adapts to camera mode, but see the backend note below: camera capture is
+frames-only, where the gate cannot be used as a filter. The
 preset supplies this question to the VLM:
 
 ```text
@@ -107,17 +109,33 @@ Event filter does not replace the question: the question defines the event and
 must instruct the VLM to return labels matching **Trigger label** and **Ignore
 label**. Changing those two controls manually does not rewrite the question.
 
-For calibration, set the gate threshold to 0 first so every window reaches the
-VLM. After checking goal recall on positive and negative examples, sweep the
-threshold upward to reduce average generation cost without losing goals. The
-current UI filters observations; exporting a video clip with pre-roll and
-post-roll is not implemented yet.
+The preset uses the **codec** backend, which needs the container wrapper above.
+That is not a style preference. On a clip with a goal at 6-8s, sampled in
+1-second strides over a 4-second window, the two backends behave completely
+differently:
 
-This preset is an experiment, not a calibrated goal detector. The StreamMind
-gate sees video only—the question does not condition its score—and earlier
-tests found that `p_speak` does not reliably track event time. Start with a gate
-threshold of 0 when recall matters, collect positive and negative examples,
-then raise the threshold only after measuring missed events.
+| backend | gate `p_speak` range | first `goal` label |
+|---|---|---|
+| frames | 0.0001 - 0.0010 | 8s |
+| codec | 0.62 - 0.88 | **6s** |
+
+The gate was trained on codec-style input. With frames it never rises above
+about 0.002 on soccer footage, so **any non-zero gate threshold suppresses every
+window** — the preset previously shipped with frames and a threshold of 0.1 and
+therefore reported nothing at all. On codec the threshold is safe anywhere from
+0 to 0.7 and the label does the real work, which is why it now defaults to 0.3.
+
+Two caveats from the same measurement. The gate does not distinguish a goal from
+ordinary play — it scores content type, not events — so it is only a cheap
+pre-filter. And a control clip of passing produced one `goal` label of its own,
+so this is a demonstration of the event-filter mechanism rather than a
+calibrated goal detector. Numbers and method are in
+[`kiarina/labs`](https://github.com/kiarina/labs/blob/main/2026/08/27/mage-vl-realtime-benchmark/README.md).
+
+For your own footage, set the gate threshold to 0 first so every window reaches
+the VLM, collect positive and negative examples, then raise the threshold only
+after measuring missed events. The current UI filters observations; exporting a
+video clip with pre-roll and post-roll is not implemented yet.
 
 When the context window is longer than the stride, windows overlap. The UI
 resets gate history before each rolling window so shared frames are not appended
