@@ -140,8 +140,9 @@ def run_cv_preinfer(
 ) -> Path:
     """Produce (or reuse) the codec asset directory for a video.
 
-    Shells out to the cv-preinfer binary named by CV_PREINFER_BIN, matching how
-    the official code invokes it, and caches per video and config the same way.
+    Shells out to CV_PREINFER_BIN when explicitly configured. Otherwise it
+    auto-detects docker/cv-preinfer from the current checkout, then falls back
+    to cv-preinfer on PATH. Results are cached per video and config.
     """
     import hashlib
     import os
@@ -162,7 +163,24 @@ def run_cv_preinfer(
     if (out_dir / "meta.json").exists() and (out_dir / "src_patch_position.npy").exists():
         return out_dir
 
-    binary = os.getenv("CV_PREINFER_BIN", "cv-preinfer")
+    configured_binary = os.getenv("CV_PREINFER_BIN")
+    if configured_binary:
+        binary = shutil.which(configured_binary)
+        if binary is None:
+            candidate = Path(configured_binary).expanduser()
+            if candidate.is_file() and os.access(candidate, os.X_OK):
+                binary = str(candidate.resolve())
+    else:
+        candidates = [
+            Path.cwd() / "docker/cv-preinfer",
+            Path(__file__).resolve().parents[2] / "docker/cv-preinfer",
+        ]
+        wrapper = next(
+            (path for path in candidates if path.is_file() and os.access(path, os.X_OK)),
+            None,
+        )
+        binary = str(wrapper.resolve()) if wrapper is not None else shutil.which("cv-preinfer")
+
     setup_hint = (
         "cv-preinfer uses an ephemeral 'docker run --rm', so no persistent "
         "container needs to be started. Run these commands from the "
@@ -170,12 +188,15 @@ def run_cv_preinfer(
         "open -a Docker\n"
         "docker build --platform linux/arm64 -t mage-cvprep:0.2.5 "
         "-f docker/Dockerfile.cvprep docker/\n"
-        "CV_PREINFER_BIN=$PWD/docker/cv-preinfer uv run --group webui "
-        "python examples/realtime_web_ui/app.py"
+        "uv run --group webui python examples/realtime_web_ui/app.py\n\n"
+        "When launching outside the repository, set the wrapper explicitly:\n"
+        "CV_PREINFER_BIN=/path/to/mage-vl-mlx/docker/cv-preinfer"
     )
-    if shutil.which(binary) is None and not os.path.isfile(binary):
+    if binary is None:
+        requested = configured_binary or "$PWD/docker/cv-preinfer or cv-preinfer on PATH"
         raise RuntimeError(
-            f"'{binary}' not found. codec-video-prep has no macOS build; "
+            f"'{requested}' not found or not executable. "
+            "codec-video-prep has no macOS build; "
             "use the container wrapper instead.\n\n"
             f"{setup_hint}"
         )

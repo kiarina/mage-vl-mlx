@@ -48,7 +48,6 @@ python inference_base.py --mode offline --video clip.mp4 \
   --video-backend frames
 
 # codec-native video (needs the container wrapper below)
-export CV_PREINFER_BIN=$PWD/docker/cv-preinfer
 python inference_base.py --mode offline --video clip.mp4 --video-backend codec
 
 # event-gated streaming
@@ -59,7 +58,9 @@ python inference_streaming.py --video clip.mp4 --segment-sec 4
 and peak memory to stderr.
 
 The codec backend needs `cv-preinfer`, which ships Linux-only wheels. Build the
-container once and the scripts drive it transparently:
+container image once and the scripts drive it transparently. From the repository
+root, `docker/cv-preinfer` is detected automatically; `CV_PREINFER_BIN` is only
+needed to override that location:
 
 ```sh
 docker build --platform linux/arm64 -t mage-cvprep:0.2.5 -f docker/Dockerfile.cvprep docker/
@@ -253,12 +254,12 @@ values are bit-identical**, and greedy 64-token output matches in float32
 (logits cosine 1.000000).
 
 codec-video-prep ships Linux-only wheels, so `docker/cv-preinfer` forwards the
-binary into an ARM64 container. Point the official code at it and the codec
-path runs unchanged on macOS:
+binary into an ARM64 container. The wrapper is detected automatically from a
+source checkout; the codec path therefore runs unchanged on macOS after the
+one-time image build:
 
 ```sh
 docker build --platform linux/arm64 -t mage-cvprep:0.2.5 -f docker/Dockerfile.cvprep docker/
-export CV_PREINFER_BIN=$PWD/docker/cv-preinfer
 ```
 
 **Token efficiency.** Uniform frame sampling costs a flat 384 visual tokens per

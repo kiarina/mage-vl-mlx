@@ -49,9 +49,11 @@ patch selection, so both controls are disabled when codec is selected.
 
 If the codec container or wrapper is unavailable, the UI error includes the
 commands needed to start Docker Desktop, build `mage-cvprep:0.2.5`, and restart
-the server with `CV_PREINFER_BIN=$PWD/docker/cv-preinfer`. The wrapper launches
-an ephemeral `docker run --rm` for each request; no persistent container needs
-to stay running.
+the server. When launched from the repository root, `docker/cv-preinfer` is
+detected automatically. `CV_PREINFER_BIN` remains available as an override when
+the UI is launched from an installed package or another working directory. The
+wrapper launches an ephemeral `docker run --rm` for each request; no persistent
+container needs to stay running.
 
 ## Event filter mode
 
