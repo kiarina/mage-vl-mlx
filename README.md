@@ -87,7 +87,9 @@ image. It also has a configurable event-filter mode that buffers terse labels,
 suppresses ignored results, and applies a cooldown to repeated detections. A
 soccer goal preset exposes the full stride, context-window, gate, label, and
 generation configuration from the UI. It binds to localhost and sends no media
-to an external service.
+to an external service. Because the browser captures the camera, forwarding the
+port lets the page run on a laptop while the model runs on another Mac of your
+own.
 
 ```sh
 uv sync --group webui

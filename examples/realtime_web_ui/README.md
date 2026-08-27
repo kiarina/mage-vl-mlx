@@ -9,6 +9,22 @@ below the video, so both remain visible while a stream is running.
 The UI binds to `127.0.0.1` by default. Uploaded media and camera frames stay on
 the Mac and are removed when the server exits.
 
+## Where the media goes
+
+The server binds to `127.0.0.1` and sends nothing to any external service. The
+camera is captured by the browser, not by the server, so the browser and the
+model do not have to run on the same machine. Forwarding the port puts the page
+on `localhost` for the browser — which `getUserMedia` requires — while the model
+runs elsewhere on your own network:
+
+```sh
+ssh -f -N -L 8000:127.0.0.1:8000 you@your-other-mac
+```
+
+In that setup camera frames do leave the laptop for the machine running the
+model, which is why the UI says media stays on *your own machines* rather than
+on this one. Nothing reaches a third party either way.
+
 ## Requirements
 
 - Apple Silicon Mac
