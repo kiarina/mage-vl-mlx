@@ -35,6 +35,19 @@
             <button id="fileTab" class="tab" type="button">Video file</button>
             <button id="cameraTab" class="tab active" type="button">Camera</button>
           </div>
+          <div id="fileControls" class="source-control hidden">
+            <label class="upload-zone" for="videoInput">
+              <input id="videoInput" type="file" accept="video/*">
+              <span class="upload-symbol">＋</span>
+              <span><b id="uploadTitle">Select a video</b><small id="uploadDetail">MP4, MOV, WebM or AVI</small></span>
+            </label>
+          </div>
+
+          <div id="cameraControls" class="source-control">
+            <button id="enableCamera" class="secondary-button" type="button">Enable camera</button>
+            <select id="cameraDevice" aria-label="Camera device"><option value="">Default camera</option></select>
+          </div>
+
           <div class="viewer-toolbar-right">
             <div class="live-chip"><span></span><b id="liveLabel">READY</b></div>
             <button id="immersiveButton" class="icon-button" type="button" aria-pressed="false" aria-label="Enter fullscreen" title="Fullscreen">
@@ -135,19 +148,6 @@
         <div class="section-heading">
           <p class="eyebrow">SESSION</p>
           <h2>Ask the stream</h2>
-        </div>
-
-        <div id="fileControls" class="source-control hidden">
-          <label class="upload-zone" for="videoInput">
-            <input id="videoInput" type="file" accept="video/*">
-            <span class="upload-symbol">＋</span>
-            <span><b id="uploadTitle">Select a video</b><small id="uploadDetail">MP4, MOV, WebM or AVI</small></span>
-          </label>
-        </div>
-
-        <div id="cameraControls" class="source-control">
-          <button id="enableCamera" class="secondary-button" type="button">Enable camera preview</button>
-          <select id="cameraDevice" aria-label="Camera device"><option value="">Default camera</option></select>
         </div>
 
         <div class="mode-row">
