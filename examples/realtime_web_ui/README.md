@@ -123,7 +123,8 @@ The stages have separate responsibilities:
 
 Both label fields accept several values separated by commas or whitespace, so
 one run can watch for more than one event: `goal, save` against `none, replay`.
-The cooldown applies across the whole trigger set rather than per label.
+The cooldown is tracked per label, so a burst of one event never suppresses a
+different one that happens during it.
 
 Event filter does not replace the question: the question defines the event and
 must instruct the VLM to return labels matching **Trigger labels** and **Ignore

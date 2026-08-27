@@ -141,7 +141,7 @@ def result_decision(
     settings: dict,
     *,
     end_s: float,
-    last_event_s: float | None,
+    last_event_at: dict[str, float],
 ) -> dict:
     """Apply UI response filtering without changing the model or gate result."""
     if not result["responded"]:
@@ -157,7 +157,12 @@ def result_decision(
     elif label not in settings["trigger_labels"]:
         reason = "unmatched-label"
         accepted = False
-    elif last_event_s is not None and end_s - last_event_s < settings["cooldown_s"]:
+    elif (
+        (previous := last_event_at.get(label)) is not None
+        and end_s - previous < settings["cooldown_s"]
+    ):
+        # Cooldown is tracked per label so that watching for several events at
+        # once does not let one of them suppress the others.
         reason = "cooldown"
         accepted = False
     else:
@@ -320,7 +325,7 @@ async def websocket_endpoint(websocket: WebSocket):
             duration = video_duration(source)
             baseline = time.perf_counter()
             segment_index = 0
-            last_event_s: float | None = None
+            last_event_at: dict[str, float] = {}
             with tempfile.TemporaryDirectory(dir=source.parent) as directory:
                 previous_boundary_s = 0.0
                 boundary_s = settings["segment_s"]
@@ -379,10 +384,10 @@ async def websocket_endpoint(websocket: WebSocket):
                         rendered,
                         settings,
                         end_s=end_s,
-                        last_event_s=last_event_s,
+                        last_event_at=last_event_at,
                     )
                     if decision["accepted"]:
-                        last_event_s = end_s
+                        last_event_at[decision["label"]] = end_s
                     emit(
                         "result",
                         segment=segment_index,
@@ -415,7 +420,7 @@ async def websocket_endpoint(websocket: WebSocket):
             origin: float | None = None
             frames_since_segment = 0
             captured: deque[tuple[float, bytes]] = deque(maxlen=frames_per_window)
-            last_event_s: float | None = None
+            last_event_at: dict[str, float] = {}
             with tempfile.TemporaryDirectory() as directory:
                 while not stop.is_set():
                     try:
@@ -472,10 +477,10 @@ async def websocket_endpoint(websocket: WebSocket):
                             rendered,
                             settings,
                             end_s=end_s,
-                            last_event_s=last_event_s,
+                            last_event_at=last_event_at,
                         )
                         if decision["accepted"]:
-                            last_event_s = end_s
+                            last_event_at[decision["label"]] = end_s
                         emit(
                             "result",
                             segment=segment_index,

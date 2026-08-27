@@ -66,8 +66,9 @@ const HELP_CONTENT = {
   cooldown: {
     title: "Cooldown",
     paragraphs: [
-      "Seconds during which repeated trigger matches are suppressed after an accepted event. This prevents overlapping windows from reporting the same real-world event several times.",
-      "A longer cooldown merges more detections but can hide distinct events that occur close together.",
+      "Seconds during which the same trigger label is suppressed after an accepted event. This prevents overlapping windows from reporting the same real-world event several times.",
+      "Each trigger label has its own cooldown, so a run watching for several events does not let one of them hide another that happens during it.",
+      "A longer cooldown merges more detections but can hide distinct events of the same kind that occur close together.",
     ],
   },
   "ignored-results": {
