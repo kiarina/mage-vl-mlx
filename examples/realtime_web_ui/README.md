@@ -206,6 +206,18 @@ instead of 2.1 — because the visual token count drops by roughly 79% and the
 generation prefill shrinks with it. Camera lag stopped growing and settled at
 about 2.7 seconds.
 
+Capture rate is a request, not a guarantee. The browser encodes one JPEG per
+frame in JavaScript and falls behind above roughly 10 fps — asking for 30 on a
+MacBook Pro M1 Max delivered 10.6. Segments are written at the rate that
+actually arrived, so a shortfall does not speed the motion up, and the sampling
+note reports the measured rate whenever it falls short of the request.
+
+Raising the rate is expensive downstream. A window of 120 frames instead of 8
+took codec preprocessing from 0.65s to 1.33s, the vision tower from 0.35s to
+1.21s, and generation from 1.44s to 6.81s, because cv-preinfer emits more
+canvases and the prefill grows with them. Treat capture rate as a way to buy
+temporal detail, and check stream lag after changing it.
+
 cv-preinfer also needs at least 8 frames per window (`--min_group_frames 8`);
 fewer produce `no canvases produced`. In camera mode the browser decides the
 frame count, so the capture-rate control stays active for codec there and the UI

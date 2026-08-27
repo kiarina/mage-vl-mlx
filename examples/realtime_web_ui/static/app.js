@@ -308,6 +308,20 @@ function codecWindowFrames() {
   return Number(elements.windowSeconds.value) * Number(elements.targetFps.value);
 }
 
+// A requested capture rate is a request, not a guarantee: the browser encodes
+// one JPEG per frame and falls behind at high rates. Show what actually
+// arrived so a run at 30 fps is not mistaken for 30 fps of evidence.
+function showMeasuredCapture(frames, fps) {
+  if (mode !== "camera" || !running) return;
+  const requested = Number(elements.targetFps.value);
+  const short = fps < requested * 0.85;
+  elements.samplingNote.textContent =
+    `Capturing ${fps.toFixed(1)} fps of the ${requested} fps requested; `
+    + `${frames} frames in this window.`
+    + (short ? " The browser cannot keep up at this rate." : "");
+  elements.samplingNote.classList.toggle("warn", short);
+}
+
 function syncBackendControls() {
   const codec = elements.backend.value === "codec";
   const camera = mode === "camera";
@@ -473,6 +487,7 @@ function handleMessage(message) {
     currentSegment = message.segment || currentSegment;
     elements.segmentNumber.textContent = `SEG ${String(currentSegment).padStart(2, "0")}`;
     elements.segmentState.textContent = message.state.toUpperCase();
+    if (message.effective_fps) showMeasuredCapture(message.frames, message.effective_fps);
     document.querySelector(".video-stage").classList.toggle("processing", message.state === "processing");
     if (message.state === "error") elements.liveText.textContent = message.message;
   } else if (message.type === "token") {

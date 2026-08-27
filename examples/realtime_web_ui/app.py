@@ -107,7 +107,7 @@ def settings_from(message: dict) -> dict:
         "question": str(message.get("question") or "Describe what is happening."),
         "segment_s": segment_s,
         "window_s": window_s,
-        "target_fps": min(8.0, max(0.5, float(message.get("target_fps", 2.0)))),
+        "target_fps": min(30.0, max(0.5, float(message.get("target_fps", 2.0)))),
         "num_frames": min(256, max(1, int(message.get("num_frames", 16)))),
         "gate_threshold": min(1.0, max(0.0, float(message.get("gate_threshold", 0.0)))),
         "max_new_tokens": min(256, max(1, int(message.get("max_new_tokens", 80)))),
@@ -449,12 +449,23 @@ async def websocket_endpoint(websocket: WebSocket):
                     newest_at = captured[-1][0]
                     start_s = captured[0][0] - origin
                     end_s = newest_at - origin
+                    # The browser cannot always deliver the requested rate: at
+                    # high rates the per-frame JPEG encode falls behind. Writing
+                    # the clip at the requested rate would then compress real
+                    # time, so the model would see the motion sped up and the
+                    # codec would read motion vectors that never happened.
+                    span_s = newest_at - captured[0][0]
+                    effective_fps = (
+                        (len(captured) - 1) / span_s
+                        if len(captured) > 1 and span_s > 1e-6
+                        else settings["target_fps"]
+                    )
                     clip = Path(directory) / f"camera-{segment_index:04d}.mp4"
                     prepare_start = time.perf_counter()
                     try:
                         camera_clip(
                             [frame for _, frame in captured],
-                            settings["target_fps"],
+                            effective_fps,
                             clip,
                         )
                         prepare_s = time.perf_counter() - prepare_start
@@ -466,6 +477,8 @@ async def websocket_endpoint(websocket: WebSocket):
                             start_s=start_s,
                             end_s=end_s,
                             backlog_s=backlog,
+                            frames=len(captured),
+                            effective_fps=effective_fps,
                         )
                         if settings["window_s"] > settings["segment_s"]:
                             session.reset()
@@ -497,6 +510,8 @@ async def websocket_endpoint(websocket: WebSocket):
                             prepare_s=prepare_s,
                             backlog_s=backlog,
                             lag_s=time.perf_counter() - newest_at,
+                            frames=len(captured),
+                            effective_fps=effective_fps,
                         )
                     except Exception as error:
                         emit(
