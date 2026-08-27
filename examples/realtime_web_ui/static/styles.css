@@ -107,8 +107,9 @@ textarea:focus, select:focus, input[type="text"]:focus, input[type="number"]:foc
 select, input[type="text"], input[type="number"] { margin-top: 7px; padding: 9px 10px; font-size: 11px; }
 .mode-row { display: grid; grid-template-columns: 1fr auto; gap: 9px; align-items: end; margin-bottom: 17px; }
 .mode-row .setting-field { color: var(--muted); font-size: 9px; }
-.preset-button { min-height: 35px; padding: 0 12px; border: 1px solid rgba(77,229,209,.18); border-radius: 10px; background: rgba(77,229,209,.06); color: #a7eee5; font-size: 10px; white-space: nowrap; }
-.preset-button:hover { border-color: rgba(77,229,209,.42); background: rgba(77,229,209,.1); }
+.preset-select { min-height: 35px; padding: 0 26px 0 12px; border: 1px solid rgba(77,229,209,.18); border-radius: 10px; background: rgba(77,229,209,.06); color: #a7eee5; font-size: 10px; white-space: nowrap; appearance: none; background-image: linear-gradient(45deg, transparent 50%, #a7eee5 50%), linear-gradient(135deg, #a7eee5 50%, transparent 50%); background-position: calc(100% - 14px) 15px, calc(100% - 9px) 15px; background-size: 5px 5px, 5px 5px; background-repeat: no-repeat; }
+.preset-select:hover { border-color: rgba(77,229,209,.42); }
+.preset-select option { background: #0d1418; color: #cfe9e5; }
 .event-controls { margin-top: 15px; padding: 14px; border: 1px solid rgba(138,124,255,.2); border-radius: 14px; background: linear-gradient(135deg, rgba(138,124,255,.07), rgba(77,229,209,.025)); }
 .event-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .event-heading span, .event-heading strong { display: block; }

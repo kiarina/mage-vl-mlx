@@ -7,8 +7,9 @@ const elements = {
   fileVideo: $("fileVideo"), cameraVideo: $("cameraVideo"), emptyStage: $("emptyStage"),
   videoInput: $("videoInput"), uploadTitle: $("uploadTitle"), uploadDetail: $("uploadDetail"),
   enableCamera: $("enableCamera"), cameraDevice: $("cameraDevice"), cameraCanvas: $("cameraCanvas"),
-  analysisMode: $("analysisMode"), eventControls: $("eventControls"), soccerPreset: $("soccerPreset"),
+  analysisMode: $("analysisMode"), eventControls: $("eventControls"),
   question: $("question"), triggerLabel: $("triggerLabel"), ignoreLabel: $("ignoreLabel"),
+  presetSelect: $("presetSelect"),
   cooldownSeconds: $("cooldownSeconds"), showIgnored: $("showIgnored"),
   backend: $("backend"), segmentSeconds: $("segmentSeconds"), windowSeconds: $("windowSeconds"),
   targetFps: $("targetFps"), numFrames: $("numFrames"), maxTokens: $("maxTokens"), gateThreshold: $("gateThreshold"),
@@ -31,6 +32,59 @@ or celebrations without the scoring moment
 
 Output only goal or none.`;
 
+const GESTURE_QUESTION = `Classify what changed in this camera window.
+
+Return exactly one lowercase label:
+sway — the person visibly rocks or sways their body or leans side to side
+hand-in — a hand enters the frame that was not visible before
+hand-out — a hand that was visible leaves the frame
+cup-in — a cup, mug or glass enters the frame that was not visible before
+cup-out — a cup, mug or glass that was visible leaves the frame
+none — anything else, including no change, small shifts and talking
+
+Report the change, not the steady state. Output only the label.`;
+
+// Each preset is a complete session: a question that defines the labels, the
+// labels themselves, and the sampling that suits the event. Labels may contain
+// hyphens, which the first-label normalizer keeps, so one word per event stays
+// unambiguous.
+const PRESETS = {
+  soccer: {
+    name: "⚽ Soccer goal",
+    question: SOCCER_QUESTION,
+    backend: "codec",
+    segmentSeconds: "1",
+    windowSeconds: "4",
+    targetFps: "2",
+    numFrames: "16",
+    gateThreshold: "0.3",
+    maxTokens: "2",
+    trigger: "goal",
+    ignore: "none",
+    cooldown: "8",
+    showIgnored: false,
+  },
+  gesture: {
+    name: "🖐 Camera gestures",
+    question: GESTURE_QUESTION,
+    backend: "codec",
+    segmentSeconds: "1",
+    windowSeconds: "4",
+    targetFps: "2",
+    numFrames: "16",
+    // Recall matters more than saved compute while exploring, and the gate
+    // scores an ordinary desk scene well below a sports broadcast, so leave it
+    // open and let the labels decide.
+    gateThreshold: "0",
+    // Hyphenated labels take several tokens to emit.
+    maxTokens: "8",
+    trigger: "sway, hand-in, hand-out, cup-in, cup-out",
+    ignore: "none",
+    cooldown: "4",
+    showIgnored: true,
+  },
+};
+
 const HELP_CONTENT = {
   "analysis-mode": {
     title: "Analysis mode",
@@ -43,7 +97,7 @@ const HELP_CONTENT = {
     title: "Question",
     paragraphs: [
       "The instruction sent to Mage-VL together with every video window. Keep it specific about what to inspect and how to answer.",
-      "For Event filter, explicitly define both the trigger and non-trigger cases, require exact labels, and keep VLM max output small. The Goal preset uses this complete example:",
+      "For Event filter, explicitly define both the trigger and non-trigger cases and require exact labels. Ask for a short answer here rather than relying on VLM max output, which truncates mid-word. The Soccer goal preset uses this complete example:",
     ],
     example: SOCCER_QUESTION,
   },
@@ -271,25 +325,26 @@ function keepWindowAtLeastStride() {
   elements.windowSeconds.value = String(replacement || stride);
 }
 
-function applySoccerPreset() {
-  if (running) return;
+function applyPreset(key) {
+  const preset = PRESETS[key];
+  if (running || !preset) return;
   elements.analysisMode.value = "event";
-  elements.question.value = SOCCER_QUESTION;
+  elements.question.value = preset.question;
   // The gate only separates content types on codec input. With frames it never
-  // rises above ~0.002 on soccer footage, so any non-zero threshold silently
-  // suppressed every detection. Measured in kiarina/labs.
-  elements.backend.value = "codec";
-  elements.segmentSeconds.value = "1";
-  elements.windowSeconds.value = "4";
-  elements.targetFps.value = "2";
-  elements.numFrames.value = "16";
-  elements.gateThreshold.value = "0.3";
-  elements.maxTokens.value = "2";
-  elements.triggerLabel.value = "goal";
-  elements.ignoreLabel.value = "none";
-  elements.cooldownSeconds.value = "8";
-  elements.showIgnored.checked = false;
-  elements.thresholdValue.textContent = "0.30";
+  // rises above ~0.002, so any non-zero threshold silently suppresses every
+  // window. Measured in kiarina/labs.
+  elements.backend.value = preset.backend;
+  elements.segmentSeconds.value = preset.segmentSeconds;
+  elements.windowSeconds.value = preset.windowSeconds;
+  elements.targetFps.value = preset.targetFps;
+  elements.numFrames.value = preset.numFrames;
+  elements.gateThreshold.value = preset.gateThreshold;
+  elements.maxTokens.value = preset.maxTokens;
+  elements.triggerLabel.value = preset.trigger;
+  elements.ignoreLabel.value = preset.ignore;
+  elements.cooldownSeconds.value = preset.cooldown;
+  elements.showIgnored.checked = preset.showIgnored;
+  elements.thresholdValue.textContent = Number(preset.gateThreshold).toFixed(2);
   clampGateThresholdToBackend();
   setAnalysisMode();
   syncBackendControls();
@@ -474,7 +529,21 @@ elements.videoInput.addEventListener("change", (event) => event.target.files[0] 
 elements.enableCamera.addEventListener("click", () => enableCamera().catch((error) => { elements.liveText.textContent = error.message; }));
 elements.cameraDevice.addEventListener("change", () => enableCamera().catch(() => {}));
 elements.analysisMode.addEventListener("change", setAnalysisMode);
-elements.soccerPreset.addEventListener("click", applySoccerPreset);
+for (const [key, preset] of Object.entries(PRESETS)) {
+  const option = document.createElement("option");
+  option.value = key;
+  option.textContent = preset.name;
+  elements.presetSelect.append(option);
+}
+
+elements.presetSelect.addEventListener("change", (event) => {
+  const key = event.target.value;
+  if (!key) return;
+  applyPreset(key);
+  // Leave the control on its placeholder so picking the same preset again
+  // re-applies it after manual edits.
+  event.target.value = "";
+});
 elements.backend.addEventListener("change", () => { clampGateThresholdToBackend(); syncBackendControls(); });
 elements.targetFps.addEventListener("change", syncBackendControls);
 elements.windowSeconds.addEventListener("change", syncBackendControls);

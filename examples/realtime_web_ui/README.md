@@ -88,9 +88,31 @@ The **Goal preset** provides a starting point for soccer highlights:
 - gate threshold 0.1, 2 generated tokens, `goal` / `none` labels
 - 8 second cooldown to merge repeated detections of one scoring event
 
+### Presets
+
+The **Presets** menu loads a complete session at once: the question that defines
+the labels, the labels themselves, and the sampling that suits the event.
+Selecting one overwrites those fields, so edit afterwards rather than before.
+
+| Preset | Watches for | Sampling |
+|---|---|---|
+| Soccer goal | `goal` against `none` | codec, 1s stride, 4s window, 2 fps, gate 0.3 |
+| Camera gestures | `sway`, `hand-in`, `hand-out`, `cup-in`, `cup-out` against `none` | codec, 1s stride, 4s window, 2 fps, gate 0 |
+
+Camera gestures is an exploration preset: it leaves the gate open so every
+window reaches the VLM, keeps ignored results in the timeline, and uses a
+4-second cooldown per label. Labels contain hyphens, which the first-label
+normalizer keeps, so each event stays one unambiguous word.
+
+A 1-second stride over a 4-second window means each window is re-analyzed four
+times as it slides. That gives fine temporal resolution but costs about four
+times the compute of a non-overlapping stride, so on current hardware the stream
+falls behind and old frames are dropped. Stream lag shows how far behind the
+displayed result is.
+
 ### Concrete example: showing only soccer goals
 
-Choose a match video, click **Goal preset**, and start analysis. Once per
+Choose a match video, load the **Soccer goal** preset, and start analysis. Once per
 second, the UI evaluates the latest window of up to four seconds. The preset
 adapts to camera mode, but see the backend note below: camera capture is
 frames-only, where the gate cannot be used as a filter. The

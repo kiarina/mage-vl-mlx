@@ -432,6 +432,14 @@ async def websocket_endpoint(websocket: WebSocket):
                         origin = captured[0][0]
                     if frames_since_segment < frames_per_stride:
                         continue
+                    if (
+                        settings["backend"] == "codec"
+                        and len(captured) < CODEC_MIN_FRAMES
+                    ):
+                        # The rolling window is still filling. A stride shorter
+                        # than the window would otherwise send the first few
+                        # segments with too few frames for cv-preinfer.
+                        continue
                     frames_since_segment = 0
                     segment_index += 1
                     # Camera segments are timestamped by when their frames arrived,
