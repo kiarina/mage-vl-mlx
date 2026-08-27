@@ -36,8 +36,8 @@ const GESTURE_QUESTION = `Classify what changed in this camera window.
 
 Return exactly one lowercase label:
 sway — the person visibly rocks or sways their body or leans side to side
-hand-in — a hand enters the frame that was not visible before
 hand-out — a hand that was visible leaves the frame
+hand-in — a hand enters the frame that was not visible before
 cup-in — a cup, mug or glass enters the frame that was not visible before
 cup-out — a cup, mug or glass that was visible leaves the frame
 none — anything else, including no change, small shifts and talking
@@ -72,7 +72,7 @@ const PRESETS = {
     backend: "codec",
     segmentSeconds: "2",
     windowSeconds: "4",
-    targetFps: "2",
+    targetFps: "8",
     numFrames: "16",
     gateThreshold: "0.3",
     maxTokens: "64",
@@ -88,7 +88,7 @@ const PRESETS = {
     backend: "codec",
     segmentSeconds: "2",
     windowSeconds: "4",
-    targetFps: "2",
+    targetFps: "8",
     numFrames: "16",
     // Recall matters more than saved compute while exploring, and the gate
     // scores an ordinary desk scene well below a sports broadcast, so leave it
@@ -200,7 +200,7 @@ const HELP_CONTENT = {
   },
 };
 
-let mode = "file";
+let mode = "camera";
 let socket;
 let uploaded = null;
 let cameraStream = null;

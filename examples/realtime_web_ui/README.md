@@ -97,8 +97,8 @@ Selecting one overwrites those fields, so edit afterwards rather than before.
 | Preset | Mode | Watches for | Sampling |
 |---|---|---|---|
 | Defaults | Describe | — | frames, 4s stride, 4s window, 2 fps, gate 0 |
-| Soccer goal | Event filter | `goal` against `none` | codec, 2s stride, 4s window, 2 fps, gate 0.3 |
-| Camera gestures | Event filter | `sway`, `hand-in`, `hand-out`, `cup-in`, `cup-out` against `none` | codec, 2s stride, 4s window, 2 fps, gate 0 |
+| Soccer goal | Event filter | `goal` against `none` | codec, 2s stride, 4s window, 8 fps, gate 0.3 |
+| Camera gestures | Event filter | `sway`, `hand-out`, `hand-in`, `cup-in`, `cup-out` against `none` | codec, 2s stride, 4s window, 8 fps, gate 0 |
 
 **Defaults** restores every field to the state the page loads with, which is the
 way back after experimenting.
@@ -156,6 +156,13 @@ Event filter does not replace the question: the question defines the event and
 must instruct the VLM to return labels matching **Trigger labels** and **Ignore
 labels**. Changing those two controls manually does not rewrite the question.
 
+**The order labels appear in the question matters.** Among cases the model finds
+similar, the description it reads first wins. In the gesture preset, `hand-out`
+was missed while it was listed after `hand-in`; moving it above `hand-in` made
+it detectable — and made it detectable at 2 fps, which raising the capture rate
+to 8 fps alone had not achieved. When a label is being missed, try moving its
+description earlier before reaching for more frames.
+
 Prefer telling the model to answer briefly in the question over relying on
 **VLM max output**. The cap truncates mid-token — a 16 token cap turns a camera
 description into `A man is looking up and to the right, with his han` — whereas
@@ -212,11 +219,29 @@ MacBook Pro M1 Max delivered 10.6. Segments are written at the rate that
 actually arrived, so a shortfall does not speed the motion up, and the sampling
 note reports the measured rate whenever it falls short of the request.
 
-Raising the rate is expensive downstream. A window of 120 frames instead of 8
-took codec preprocessing from 0.65s to 1.33s, the vision tower from 0.35s to
-1.21s, and generation from 1.44s to 6.81s, because cv-preinfer emits more
-canvases and the prefill grows with them. Treat capture rate as a way to buy
-temporal detail, and check stream lag after changing it.
+### Keep the window at 32 frames
+
+cv-preinfer groups frames with `--group_size 32` and emits four canvases per
+group, and those canvases are the whole cost to the model. Up to 32 frames per
+window there is one group, so the model's work does not change at all:
+
+| Frames in the window | Canvases | Visual tokens | Preprocessing |
+|---:|---:|---:|---:|
+| 8 (2 fps × 4s) | 4 | 576 | 0.66s |
+| 16 (4 fps × 4s) | 4 | 576 | 0.64s |
+| **32 (8 fps × 4s)** | **4** | **576** | 0.72s |
+| 64 (16 fps × 4s) | 12 | 1728 | 0.92s |
+| 120 (30 fps × 4s) | 20 | 2880 | 1.21s |
+
+So going from 2 fps to 8 fps buys four times the temporal detail for about 0.06s
+— the codec analyzes finer motion and picks better patches, while the model
+still sees four canvases. Past 32 frames the canvases multiply and the cost
+follows: a 120 frame window took the vision tower from 0.35s to 1.21s and
+generation from 1.44s to 6.81s, roughly 3.8× per segment overall.
+
+**Aim for `context window × capture rate ≈ 32`.** A 4-second window at 8 fps is
+the preset default; 2 seconds at 16 fps trades context for finer timing at the
+same cost.
 
 cv-preinfer also needs at least 8 frames per window (`--min_group_frames 8`);
 fewer produce `no canvases produced`. In camera mode the browser decides the
