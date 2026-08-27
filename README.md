@@ -97,7 +97,8 @@ uv run --group webui python examples/realtime_web_ui/app.py
 
 File mode supports the frames and codec backends. Camera mode currently uses
 sampled frames. See [`examples/realtime_web_ui`](examples/realtime_web_ui) for
-the controls, privacy boundary, and real-time semantics.
+the controls, privacy boundary, real-time semantics, and a step-by-step soccer
+goal filtering example.
 
 Measure processing-only real-time factor and simulated backlog without the UI:
 

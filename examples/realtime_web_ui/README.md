@@ -69,6 +69,47 @@ The **Goal preset** provides a starting point for soccer highlights:
 - gate threshold 0.1, 2 generated tokens, `goal` / `none` labels
 - 8 second cooldown to merge repeated detections of one scoring event
 
+### Concrete example: showing only soccer goals
+
+Choose a match video or camera, click **Goal preset**, and start analysis. Once
+per second, the UI evaluates the latest window of up to four seconds. The
+preset supplies this question to the VLM:
+
+```text
+Classify whether this video window contains the moment a goal is scored in a
+soccer match. Return exactly one lowercase label: goal if the ball crosses the
+goal line and a goal is scored; none for anything else, including buildup,
+missed shots, replays, or celebrations without the scoring moment. Output only
+goal or none.
+```
+
+The stages have separate responsibilities:
+
+1. StreamMind calculates `p_speak` from video only. The question does not
+   affect this score. If the score is below the gate threshold, the VLM is not
+   run for that window.
+2. For a window that passes the gate, Mage-VL receives both the video and the
+   question and generates at most two tokens.
+3. Event filter buffers the response, normalizes its first label, and applies
+   the UI policy below.
+
+| VLM or gate result | UI behavior |
+|---|---|
+| `goal` | Show the event unless it is inside the 8 second cooldown |
+| `none` | Ignore it; optionally keep it in the diagnostic timeline |
+| another label or sentence | Ignore it as `unmatched-label` |
+| gate below threshold | Skip VLM generation and mark it as `gate` |
+
+Event filter does not replace the question: the question defines the event and
+must instruct the VLM to return labels matching **Trigger label** and **Ignore
+label**. Changing those two controls manually does not rewrite the question.
+
+For calibration, set the gate threshold to 0 first so every window reaches the
+VLM. After checking goal recall on positive and negative examples, sweep the
+threshold upward to reduce average generation cost without losing goals. The
+current UI filters observations; exporting a video clip with pre-roll and
+post-roll is not implemented yet.
+
 This preset is an experiment, not a calibrated goal detector. The StreamMind
 gate sees video only—the question does not condition its score—and earlier
 tests found that `p_speak` does not reliably track event time. Start with a gate
