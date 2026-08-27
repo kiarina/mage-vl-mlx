@@ -50,13 +50,22 @@ def extract_subclip(
     start_s: float,
     duration_s: float,
     output: str | Path,
+    fps: float | None = None,
 ) -> Path:
-    """Cut an exact, independently decodable H.264 segment with ffmpeg."""
+    """Cut an exact, independently decodable H.264 segment with ffmpeg.
+
+    `fps` resamples the segment on the way out. The codec backend's cost is
+    driven by how many frames the window holds — cv-preinfer groups them and
+    emits four canvases per group — so handing it a full-rate clip costs several
+    times more than the same seconds sampled down, for temporal detail the model
+    never sees. Leave it None to keep the source rate.
+    """
     output = Path(output)
+    rate = ["-r", f"{fps:g}"] if fps else []
     subprocess.run(
         [
             "ffmpeg", "-y", "-loglevel", "error", "-ss", f"{start_s:.3f}",
-            "-t", f"{duration_s:.3f}", "-i", str(source), "-c:v", "libx264",
+            "-t", f"{duration_s:.3f}", "-i", str(source), *rate, "-c:v", "libx264",
             "-pix_fmt", "yuv420p", "-an", str(output),
         ],
         check=True,

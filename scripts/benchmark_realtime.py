@@ -37,6 +37,9 @@ def main() -> None:
     parser.add_argument("--runs", type=int, default=3)
     parser.add_argument("--min-tail-sec", type=float, default=0.5,
                         help="ignore a final container-duration sliver shorter than this")
+    parser.add_argument("--resample-codec-input", action="store_true",
+                        help="cut codec segments at --target-fps instead of the source rate, "
+                             "the way the live camera path feeds them")
     parser.add_argument("--output", type=Path)
     args = parser.parse_args()
     if args.segment_sec <= 0:
@@ -84,7 +87,14 @@ def main() -> None:
                 segment_index += 1
                 clip = Path(directory) / f"segment-{segment_index:04d}.mp4"
                 prepare_start = time.perf_counter()
-                extract_subclip(args.video, start_s, end_s - start_s, clip)
+                extract_subclip(
+                    args.video, start_s, end_s - start_s, clip,
+                    fps=(
+                        args.target_fps
+                        if args.resample_codec_input and args.backend == "codec"
+                        else None
+                    ),
+                )
                 prepare_s = time.perf_counter() - prepare_start
                 backlog_before_s = max(0.0, worker_free_s - end_s)
                 result = session.process_segment(
@@ -143,6 +153,7 @@ def main() -> None:
         "gate_dtype": args.gate_dtype,
         "question": args.question,
         "min_tail_sec": args.min_tail_sec,
+        "resample_codec_input": args.resample_codec_input,
         "model_load_s": load_s,
         "peak_memory_gb": mx.get_peak_memory() / 1024**3,
         "runs": runs,

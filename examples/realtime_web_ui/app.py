@@ -351,7 +351,18 @@ async def websocket_endpoint(websocket: WebSocket):
                     clip = Path(directory) / f"segment-{segment_index:04d}.mp4"
                     prepare_start = time.perf_counter()
                     try:
-                        extract_subclip(source, start_s, end_s - start_s, clip)
+                        # The frames backend samples the clip itself; codec takes
+                        # whatever the file holds, so the capture rate has to be
+                        # applied here or a 24 fps source costs four times as
+                        # much as the same window from the camera.
+                        extract_subclip(
+                            source, start_s, end_s - start_s, clip,
+                            fps=(
+                                settings["target_fps"]
+                                if settings["backend"] == "codec"
+                                else None
+                            ),
+                        )
                         prepare_s = time.perf_counter() - prepare_start
                         if settings["window_s"] > settings["segment_s"]:
                             # Overlapping windows must not duplicate their shared frames
@@ -568,6 +579,19 @@ async def websocket_endpoint(websocket: WebSocket):
                 await stop_worker()
                 stop.clear()
                 settings = settings_from(message)
+                window_frames = round(settings["window_s"] * settings["target_fps"])
+                if settings["backend"] == "codec" and window_frames < CODEC_MIN_FRAMES:
+                    await send(
+                        "error",
+                        message=(
+                            f"Codec needs at least {CODEC_MIN_FRAMES} frames per "
+                            f"window. A {settings['window_s']:g}s context window cut "
+                            f"at {settings['target_fps']:g} fps gives {window_frames}. "
+                            "Raise the capture rate or the context window, or use "
+                            "the frames backend."
+                        ),
+                    )
+                    continue
                 worker = asyncio.create_task(asyncio.to_thread(
                     process_file, str(message["media_id"]), settings
                 ))

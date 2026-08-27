@@ -252,6 +252,12 @@ generation from 1.44s to 6.81s, roughly 3.8× per segment overall.
 the preset default; 2 seconds at 16 fps trades context for finer timing at the
 same cost.
 
+This applies to uploaded video too. File segments are cut at the capture rate
+before codec preprocessing, so a 24 fps source does not quietly hand the codec
+96 frames for a 4-second window. On a MacBook Pro M1 Max that one change took a
+4-second codec segment from 8.52s to 3.11s — a real-time factor of 0.830 instead
+of 2.024 — with the vision tower 3.4× faster and generation 3.2× faster.
+
 cv-preinfer also needs at least 8 frames per window (`--min_group_frames 8`);
 fewer produce `no canvases produced`. In camera mode the browser decides the
 frame count, so the capture-rate control stays active for codec there and the UI

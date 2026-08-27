@@ -327,23 +327,22 @@ function showMeasuredCapture(frames, fps) {
 function syncBackendControls() {
   const codec = elements.backend.value === "codec";
   const camera = mode === "camera";
-  // In camera mode the browser decides how many frames exist, so capture rate
-  // still applies to codec: it is what fills the window.
-  elements.targetFps.disabled = codec && !camera;
+  // Capture rate always decides how many frames a codec window holds: the
+  // browser captures at it for the camera, and file segments are cut at it.
+  elements.targetFps.disabled = false;
   elements.numFrames.disabled = codec;
-  if (codec && camera) {
+  if (codec) {
     const frames = codecWindowFrames();
+    const source = camera ? "The browser captures at this rate" : "File segments are cut at this rate";
     elements.samplingNote.textContent = frames < CODEC_MIN_FRAMES
       ? `Codec needs at least ${CODEC_MIN_FRAMES} frames per window; this capture rate and context window give ${frames}. Raise either, or switch to Frames.`
-      : `The browser captures at this rate; codec sees ${frames} frames per window and samples them internally. Max frames does not apply.`;
-  } else if (codec) {
-    elements.samplingNote.textContent = "Codec controls temporal sampling internally; Capture rate and Max frames do not apply.";
+      : `${source}; codec sees ${frames} frames per window and samples them internally. Max frames does not apply.`;
   } else if (camera) {
     elements.samplingNote.textContent = "The browser captures the camera at this rate; each window is capped by Max frames.";
   } else {
     elements.samplingNote.textContent = "Frames backend samples the uploaded video at this rate, capped by Max frames.";
   }
-  const tooFew = codec && camera && codecWindowFrames() < CODEC_MIN_FRAMES;
+  const tooFew = codec && codecWindowFrames() < CODEC_MIN_FRAMES;
   elements.samplingNote.classList.toggle("warn", tooFew);
   elements.startButton.disabled = running || tooFew;
 }
