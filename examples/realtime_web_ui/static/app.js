@@ -49,16 +49,33 @@ Report the change, not the steady state. Output only the label.`;
 // hyphens, which the first-label normalizer keeps, so one word per event stays
 // unambiguous.
 const PRESETS = {
+  reset: {
+    name: "↺ Defaults",
+    analysisMode: "describe",
+    question: "Describe what is happening. Focus on changes and motion.",
+    backend: "frames",
+    segmentSeconds: "4",
+    windowSeconds: "4",
+    targetFps: "2",
+    numFrames: "16",
+    gateThreshold: "0",
+    maxTokens: "64",
+    trigger: "goal",
+    ignore: "none",
+    cooldown: "8",
+    showIgnored: false,
+  },
   soccer: {
     name: "⚽ Soccer goal",
+    analysisMode: "event",
     question: SOCCER_QUESTION,
     backend: "codec",
-    segmentSeconds: "1",
+    segmentSeconds: "2",
     windowSeconds: "4",
     targetFps: "2",
     numFrames: "16",
     gateThreshold: "0.3",
-    maxTokens: "2",
+    maxTokens: "64",
     trigger: "goal",
     ignore: "none",
     cooldown: "8",
@@ -66,9 +83,10 @@ const PRESETS = {
   },
   gesture: {
     name: "🖐 Camera gestures",
+    analysisMode: "event",
     question: GESTURE_QUESTION,
     backend: "codec",
-    segmentSeconds: "1",
+    segmentSeconds: "2",
     windowSeconds: "4",
     targetFps: "2",
     numFrames: "16",
@@ -76,8 +94,7 @@ const PRESETS = {
     // scores an ordinary desk scene well below a sports broadcast, so leave it
     // open and let the labels decide.
     gateThreshold: "0",
-    // Hyphenated labels take several tokens to emit.
-    maxTokens: "8",
+    maxTokens: "64",
     trigger: "sway, hand-in, hand-out, cup-in, cup-out",
     ignore: "none",
     cooldown: "4",
@@ -328,7 +345,7 @@ function keepWindowAtLeastStride() {
 function applyPreset(key) {
   const preset = PRESETS[key];
   if (running || !preset) return;
-  elements.analysisMode.value = "event";
+  elements.analysisMode.value = preset.analysisMode;
   elements.question.value = preset.question;
   // The gate only separates content types on codec input. With frames it never
   // rises above ~0.002, so any non-zero threshold silently suppresses every
