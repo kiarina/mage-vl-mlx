@@ -3,6 +3,8 @@
 Local reference UI for the incremental Mage-VL API. It supports a video file
 played at normal speed and a browser camera stream, while showing gate scores,
 streamed text, first-token latency, full-response latency, and backlog.
+The latest response and the scrollable observation history share the panel
+below the video, so both remain visible while a stream is running.
 
 The UI binds to `127.0.0.1` by default. Uploaded media and camera frames stay on
 the Mac and are removed when the server exits.

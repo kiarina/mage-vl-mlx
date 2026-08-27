@@ -51,7 +51,8 @@ button, select, input[type="range"] { cursor: pointer; }
 .system-state strong { display: block; margin-top: 2px; font-size: 11px; font-weight: 600; }
 
 .workspace { display: grid; grid-template-columns: minmax(0, 1.65fr) minmax(330px, .75fr); gap: 18px; }
-.viewer-card, .control-card, .timeline { border-radius: var(--radius); overflow: hidden; }
+.viewer-card, .control-card { border-radius: var(--radius); overflow: hidden; }
+.viewer-card { display: flex; min-height: 0; flex-direction: column; }
 .viewer-toolbar { height: 58px; display: flex; align-items: center; justify-content: space-between; padding: 0 18px; border-bottom: 1px solid var(--line); }
 .source-tabs { display: flex; gap: 5px; background: rgba(0,0,0,.24); padding: 4px; border-radius: 11px; }
 .tab { border: 0; background: transparent; color: var(--muted); padding: 7px 13px; border-radius: 8px; font-size: 12px; }
@@ -75,7 +76,8 @@ button, select, input[type="range"] { cursor: pointer; }
 .timecode b, .segment-badge b { display: block; margin-top: 3px; font-size: 11px; font-variant-numeric: tabular-nums; }
 .scan-line { position: absolute; left: 0; right: 0; height: 1px; top: 15%; opacity: 0; background: linear-gradient(90deg, transparent, rgba(77,229,209,.65), transparent); box-shadow: 0 0 10px rgba(77,229,209,.4); pointer-events: none; }
 .video-stage.processing .scan-line { opacity: 1; animation: scan 2.2s linear infinite; }
-.live-output { min-height: 132px; padding: 18px 21px 22px; border-top: 1px solid var(--line); background: rgba(4,7,11,.34); }
+.insight-dock { display: grid; grid-template-columns: minmax(0, .82fr) minmax(320px, 1.18fr); flex: 1; min-height: 190px; border-top: 1px solid var(--line); background: rgba(4,7,11,.34); }
+.live-output { min-width: 0; min-height: 0; padding: 18px 21px 22px; border-right: 1px solid var(--line); }
 .output-heading { display: flex; align-items: center; gap: 8px; }
 .output-heading p { margin: 0; color: var(--cyan); font-size: 9px; font-weight: 750; letter-spacing: .16em; }
 .output-heading span:last-child { margin-left: auto; color: var(--muted); font-size: 9px; }
@@ -132,12 +134,16 @@ input[type="range"] { width: 100%; accent-color: var(--cyan); }
 .metric span, .metric small { display: block; color: var(--muted); font-size: 8px; letter-spacing: .13em; }
 .metric strong { display: block; margin: 12px 0 6px; font-size: 23px; font-weight: 580; font-variant-numeric: tabular-nums; }
 .metric small { letter-spacing: 0; }
-.timeline { margin-top: 14px; padding: 22px; }
+.inline-timeline { display: flex; min-width: 0; min-height: 0; flex-direction: column; padding: 17px 19px 18px; background: rgba(255,255,255,.012); }
 .timeline-header { display: flex; justify-content: space-between; align-items: center; }
+.inline-timeline .timeline-header h2 { font-size: 14px; }
 .text-button { border: 0; background: transparent; color: var(--muted); font-size: 10px; }
-.timeline-entries { display: grid; gap: 8px; margin-top: 17px; }
+.timeline-entries { display: grid; gap: 8px; margin-top: 12px; }
+.inline-timeline .timeline-entries { flex: 1; min-height: 0; overflow-y: auto; padding-right: 4px; scrollbar-color: rgba(137,146,163,.36) transparent; }
 .timeline-empty { padding: 22px; border: 1px dashed var(--line); border-radius: 13px; color: var(--muted); text-align: center; font-size: 11px; }
 .timeline-entry { display: grid; grid-template-columns: 96px 1fr auto; gap: 14px; align-items: start; padding: 14px 15px; border: 1px solid var(--line); border-radius: 13px; background: rgba(255,255,255,.018); }
+.inline-timeline .timeline-entry { grid-template-columns: 78px minmax(0, 1fr); gap: 7px 11px; padding: 10px 11px; }
+.inline-timeline .timeline-entry .score { grid-column: 2; white-space: normal; }
 .timeline-entry.event-match { border-color: rgba(77,229,209,.32); background: linear-gradient(90deg, rgba(77,229,209,.08), rgba(255,255,255,.018)); box-shadow: inset 3px 0 0 var(--cyan); }
 .timeline-entry.ignored { opacity: .48; }
 .timeline-entry .stamp { color: var(--cyan); font-size: 10px; font-variant-numeric: tabular-nums; }
@@ -160,6 +166,9 @@ footer { display: flex; justify-content: space-between; padding: 20px 4px 0; col
   .system-state { padding: 7px 9px; }
   .state-label { display: none; }
   .video-stage { min-height: 240px; aspect-ratio: 4/3; }
+  .insight-dock { grid-template-columns: 1fr; }
+  .live-output { border-right: 0; border-bottom: 1px solid var(--line); }
+  .inline-timeline .timeline-entries { max-height: 280px; }
   .setting-grid, .metrics-grid { grid-template-columns: 1fr; }
   .timeline-entry { grid-template-columns: 72px 1fr; }
   .timeline-entry .score { grid-column: 2; }

@@ -59,13 +59,25 @@
           <div class="scan-line"></div>
         </div>
 
-        <div class="live-output">
-          <div class="output-heading">
-            <span class="pulse-icon"></span>
-            <p>LIVE RESPONSE</p>
-            <span id="tokenCounter">0 TOKENS</span>
-          </div>
-          <p id="liveText" class="live-text">Waiting for the first completed segment…</p>
+        <div class="insight-dock">
+          <section class="live-output" aria-label="Live response">
+            <div class="output-heading">
+              <span class="pulse-icon"></span>
+              <p>LIVE RESPONSE</p>
+              <span id="tokenCounter">0 TOKENS</span>
+            </div>
+            <p id="liveText" class="live-text">Waiting for the first completed segment…</p>
+          </section>
+
+          <section class="inline-timeline" aria-label="Observations">
+            <div class="timeline-header">
+              <div><p class="eyebrow">OBSERVATIONS</p><h2>Segment timeline</h2></div>
+              <button id="clearButton" class="text-button" type="button">Clear</button>
+            </div>
+            <div id="timelineEntries" class="timeline-entries">
+              <div class="timeline-empty">Responses will appear here as the stream advances.</div>
+            </div>
+          </section>
         </div>
       </div>
 
@@ -206,16 +218,6 @@
       <article class="metric panel"><span>FIRST TEXT</span><strong id="firstMetric">—</strong><small>after segment end</small></article>
       <article class="metric panel"><span>FULL RESPONSE</span><strong id="fullMetric">—</strong><small>after segment end</small></article>
       <article class="metric panel"><span>STREAM LAG</span><strong id="lagMetric">—</strong><small id="lagNote">no backlog</small></article>
-    </section>
-
-    <section class="timeline panel">
-      <div class="timeline-header">
-        <div><p class="eyebrow">OBSERVATIONS</p><h2>Segment timeline</h2></div>
-        <button id="clearButton" class="text-button" type="button">Clear</button>
-      </div>
-      <div id="timelineEntries" class="timeline-entries">
-        <div class="timeline-empty">Responses will appear here as the stream advances.</div>
-      </div>
     </section>
 
     <footer><span>Runs locally on Apple Silicon</span><span>Video and camera data never leave this machine</span></footer>
