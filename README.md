@@ -36,23 +36,28 @@ opposite of what this port is for.
 
 ```sh
 uv sync
-python scripts/convert_weights.py        # -> weights/mage-vl-bf16
-python scripts/convert_gate_weights.py   # streaming gate
+uv run python scripts/convert_weights.py        # -> weights/mage-vl-bf16
+uv run python scripts/convert_gate_weights.py   # streaming gate
 
 # image
-python inference_base.py --mode offline --image photo.jpg \
+uv run python inference_base.py --mode offline --image photo.jpg \
   --question "Describe this image."
 
 # frame-sampled video
-python inference_base.py --mode offline --video clip.mp4 \
+uv run python inference_base.py --mode offline --video clip.mp4 \
   --video-backend frames
 
 # codec-native video (needs the container wrapper below)
-python inference_base.py --mode offline --video clip.mp4 --video-backend codec
+uv run python inference_base.py --mode offline --video clip.mp4 \
+  --video-backend codec
 
 # event-gated streaming
-python inference_streaming.py --video clip.mp4 --segment-sec 4
+uv run python inference_streaming.py --video clip.mp4 --segment-sec 4
 ```
+
+`uv sync` creates the environment but does not activate it, so run through
+`uv run` unless you have activated `.venv` yourself. Without it the first
+command stops at `ModuleNotFoundError: No module named 'mlx'`.
 
 `--verbose` on `inference_base.py` prints load time, prompt length, tokens/s,
 and peak memory to stderr.
@@ -147,7 +152,7 @@ So the practical recipe is to use the gate only as a cheap pre-filter and read
 the text for the actual decision:
 
 ```sh
-python inference_streaming.py --video clip.mp4 --segment-sec 1 \
+uv run python inference_streaming.py --video clip.mp4 --segment-sec 1 \
   --gate-threshold 0.3          # or 0 to describe every segment
 ```
 
