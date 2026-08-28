@@ -383,11 +383,11 @@ same corner reports: seconds of work per second of video, taken as the median of
 the last few segments. Below 1 the lag holds steady and a fixed delay stays in
 step; at 1 or above the badge turns red, the backlog grows with every segment,
 and no fixed offset can track it. Stream time, display delay and RTF stack at the
-top left of the picture, and the segment state with the gate score and the three
-latency figures stack at the top right, so every number can be read without
-looking away from the video. Fullscreen keeps only the left column — each
-observation already carries its own gate score and lag, and a phone has no room
-for a second column of numbers. 
+top left of the picture, and the segment state sits at the top right above the
+gate score and the three latency figures, so every number can be read without
+looking away from the video. Those four are read after the picture and after
+whether the stream is keeping up, so they share one small panel rather than
+taking a badge each, which is compact enough to keep in fullscreen too.
 
 ## Real-time semantics
 

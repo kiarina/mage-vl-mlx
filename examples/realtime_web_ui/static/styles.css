@@ -423,7 +423,7 @@ footer { display: flex; justify-content: space-between; padding: 20px 4px 0; col
 .viewer-card.immersive .stage-overlay { flex-direction: column; align-items: flex-start; gap: 6px; }
 .viewer-card.immersive .stage-status { gap: 6px; }
 .viewer-card.immersive .stage-metrics { align-items: flex-start; }
-.viewer-card.immersive .metric-panel { display: none; }
+.viewer-card.immersive .metric-panel { background: rgba(0,0,0,.45); }
 .viewer-card.immersive .delay-badge,
 .viewer-card.immersive .rtf-badge,
 .viewer-card.immersive .segment-badge { background: rgba(0,0,0,.45); }
