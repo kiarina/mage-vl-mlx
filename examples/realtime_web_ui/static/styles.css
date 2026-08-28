@@ -370,6 +370,7 @@ footer { display: flex; justify-content: space-between; padding: 20px 4px 0; col
   left: auto; bottom: auto;
 }
 .stage-action {
+  display: inline-flex; align-items: center; justify-content: center;
   min-height: 36px; padding: 0 16px; border-radius: 999px;
   border: 1px solid rgba(255,255,255,.28); background: rgba(0,0,0,.45);
   color: #fff; font-size: 13px; font-weight: 600; cursor: pointer;
@@ -380,7 +381,7 @@ footer { display: flex; justify-content: space-between; padding: 20px 4px 0; col
 .stage-action[disabled] { opacity: .45; cursor: not-allowed; }
 .stage-action.hidden { display: none; }
 /* The camera switch is an icon, so it is square rather than pill-shaped. */
-#immersiveCamera { width: 36px; padding: 0; align-items: center; justify-content: center; }
+#immersiveCamera { width: 36px; padding: 0; }
 
 @media (max-width: 767px) {
   .viewer-card.immersive .live-text { font-size: 19px; }
@@ -395,8 +396,21 @@ footer { display: flex; justify-content: space-between; padding: 20px 4px 0; col
 .stage-status, .stage-metrics { display: flex; flex-direction: column; gap: 6px; }
 .stage-status { align-items: flex-start; }
 .stage-metrics { align-items: flex-end; }
-.metric-badge b { font-variant-numeric: tabular-nums; }
-.metric-badge i { display: block; margin-top: 1px; font-style: normal; font-size: 9px; letter-spacing: .04em; color: #63808a; }
+/* These four are read after the picture and after whether a run is keeping up,
+   so they are one quiet panel rather than four separate badges: a stack of
+   boxes claimed the height of the stage for the least urgent numbers on it. */
+.metric-panel {
+  display: grid; grid-template-columns: auto auto; align-items: baseline;
+  gap: 3px 12px; padding: 8px 11px;
+  background: rgba(4,7,11,.7); border: 1px solid rgba(255,255,255,.12);
+  border-radius: 10px; backdrop-filter: blur(12px);
+}
+.metric-panel span { color: var(--muted); font-size: 7px; font-weight: 720; letter-spacing: .16em; }
+.metric-panel b { justify-self: end; font-size: 10px; font-variant-numeric: tabular-nums; }
+.metric-panel i {
+  grid-column: 1 / -1; justify-self: end;
+  font-style: normal; font-size: 8px; letter-spacing: .04em; color: #63808a;
+}
 .delay-badge { border-color: rgba(255,196,120,.35); color: #ffd39b; }
 .rtf-badge { border-color: rgba(120,220,190,.3); color: #a8e8cf; }
 .rtf-badge.warn { border-color: rgba(255,150,130,.45); color: #ffb4a2; }
@@ -409,7 +423,7 @@ footer { display: flex; justify-content: space-between; padding: 20px 4px 0; col
 .viewer-card.immersive .stage-overlay { flex-direction: column; align-items: flex-start; gap: 6px; }
 .viewer-card.immersive .stage-status { gap: 6px; }
 .viewer-card.immersive .stage-metrics { align-items: flex-start; }
-.viewer-card.immersive .metric-badge { display: none; }
+.viewer-card.immersive .metric-panel { display: none; }
 .viewer-card.immersive .delay-badge,
 .viewer-card.immersive .rtf-badge,
 .viewer-card.immersive .segment-badge { background: rgba(0,0,0,.45); }
