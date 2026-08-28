@@ -9,6 +9,12 @@ below the video, so both remain visible while a stream is running.
 The UI binds to `127.0.0.1` by default. Uploaded media and camera frames stay on
 the Mac and are removed when the server exits.
 
+Two short recordings show both modes, trimmed at the head and tail and otherwise
+uncut: [a phone camera in fullscreen, 43 s](https://www.youtube.com/watch?v=o252ZbvSFf8)
+and [a video file on the desktop layout, 14 s](https://www.youtube.com/watch?v=Aa3RPnTtklg).
+Both run `Display delay`, so the picture trails the live edge by a couple of
+seconds to sit beside the response it produced.
+
 ## Where the media goes
 
 The server binds to `127.0.0.1` and sends nothing to any external service. The

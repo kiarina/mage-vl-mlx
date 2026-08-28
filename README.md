@@ -8,6 +8,17 @@ The goal is to reproduce all Mage-VL paths — static images, frame-sampled
 video, proactive streaming, and the codec-native sparse video path — with
 quantitative parity against the official PyTorch implementation.
 
+![The reference Web UI in two places: a Mac showing a soccer clip with the generated description, gate score and latencies beside it, and the same page fullscreen on a phone describing what its rear camera is pointed at](docs/ui-desktop-and-phone.webp)
+
+Both panels are the reference UI in
+[`examples/realtime_web_ui/`](examples/realtime_web_ui), with the model running
+locally on Apple Silicon. Short recordings of each, trimmed at the head and tail
+and otherwise uncut: [phone camera, 43 s](https://www.youtube.com/watch?v=o252ZbvSFf8)
+· [video file, 14 s](https://www.youtube.com/watch?v=Aa3RPnTtklg). In both, the
+picture is held back a couple of seconds by `Display delay` so each response
+lines up with the window that produced it — the model is not answering
+instantly, and the undelayed camera stays in the corner.
+
 ## Status
 
 Every Mage-VL path works end to end and matches the official PyTorch
