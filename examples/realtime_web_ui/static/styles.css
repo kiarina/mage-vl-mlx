@@ -66,7 +66,11 @@ button, select, input[type="range"] { cursor: pointer; }
 .source-band .band-field { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 9px; }
 .source-band .band-field label { font-weight: 700; letter-spacing: .14em; text-transform: uppercase; white-space: nowrap; }
 .source-band .band-field select { margin: 0; width: auto; min-height: 42px; }
-.source-band .band-field:last-child { margin-left: auto; }
+/* The source control taking the free space is what pushes the rest to the right
+   on one line. An explicit `margin-left: auto` would do the same there, but it
+   also survives wrapping, and then it strands the field alone at the right of
+   its own row instead of starting it where every other row starts. */
+.source-band > .source-control { flex: 1 1 auto; }
 .source-band .source-control { flex: 1 1 auto; min-width: 0; margin: 0; display: flex; align-items: center; gap: 10px; }
 .source-band .source-control.hidden { display: none; }
 .source-band .upload-zone { flex: 1 1 auto; min-width: 0; min-height: 42px; padding: 6px 14px; border-radius: 11px; gap: 11px; }

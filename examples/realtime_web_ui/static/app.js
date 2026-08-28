@@ -786,6 +786,10 @@ async function enableCamera() {
     elements.cameraDevice.append(option);
   });
   elements.cameraDevice.value = chosen;
+  // Assigning an empty string leaves the select with nothing selected rather
+  // than on the "Default camera" entry, which shows as a blank control. It
+  // happens whenever the track reports no device id.
+  if (elements.cameraDevice.selectedIndex < 0) elements.cameraDevice.selectedIndex = 0;
   syncStageControls();
   showSource();
 }
