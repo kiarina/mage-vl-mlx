@@ -142,10 +142,15 @@ Selecting one overwrites those fields, so edit afterwards rather than before.
 | Camera gestures | Event filter | `sway`, `hand-out`, `hand-in`, `cup-in`, `cup-out` against `none` | codec, 2s stride, 4s window, 8 fps, gate 0 |
 
 **Defaults** restores every field to the state the page loads with, which is the
-way back after experimenting. The page opens on the camera tab with the codec
-backend, because that is the configuration these measurements landed on: it is
-the only one where live camera keeps up with the stream and the streaming gate
-does anything at all.
+way back after experimenting. It selects the codec backend, because that is the
+configuration these measurements landed on: it is the only one where live camera
+keeps up with the stream and the streaming gate does anything at all.
+
+The page opens on the video file tab, and the tab is the camera switch. Choosing
+Camera is the gesture that asks for permission, and leaving it releases the
+device, so a camera is never held open by a page that is showing a file. Nothing
+can list the cameras by name before permission is granted, which is why the
+device menu fills in only once that tab has been chosen.
 
 That means the container below has to be built before the first run. **Frames
 is the explicit fallback** for when Docker is not available — it runs anywhere

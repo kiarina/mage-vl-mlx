@@ -32,8 +32,8 @@
       <div class="viewer-card panel">
         <div class="viewer-toolbar">
           <div class="source-tabs" role="tablist" aria-label="Video source">
-            <button id="fileTab" class="tab" type="button">Video file</button>
-            <button id="cameraTab" class="tab active" type="button">Camera</button>
+            <button id="fileTab" class="tab active" type="button">Video file</button>
+            <button id="cameraTab" class="tab" type="button">Camera</button>
           </div>
           <div class="viewer-toolbar-right">
             <div class="live-chip"><span></span><b id="liveLabel">READY</b></div>
@@ -47,7 +47,7 @@
         </div>
 
         <div class="source-band">
-          <div id="fileControls" class="source-control hidden">
+          <div id="fileControls" class="source-control">
             <label class="upload-zone" for="videoInput">
               <input id="videoInput" type="file" accept="video/*">
               <span class="upload-symbol">＋</span>
@@ -55,9 +55,9 @@
             </label>
           </div>
 
-          <div id="cameraControls" class="source-control">
-            <button id="enableCamera" class="secondary-button" type="button">Enable camera</button>
-            <select id="cameraDevice" aria-label="Camera device"><option value="">Default camera</option></select>
+          <div id="cameraControls" class="source-control band-field hidden">
+            <label for="cameraDevice">Camera</label>
+            <select id="cameraDevice"><option value="">Default camera</option></select>
           </div>
 
           <div class="band-field">

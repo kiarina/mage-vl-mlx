@@ -6,7 +6,7 @@ const elements = {
   fileControls: $("fileControls"), cameraControls: $("cameraControls"),
   fileVideo: $("fileVideo"), cameraVideo: $("cameraVideo"), emptyStage: $("emptyStage"),
   videoInput: $("videoInput"), uploadTitle: $("uploadTitle"), uploadDetail: $("uploadDetail"),
-  enableCamera: $("enableCamera"), cameraDevice: $("cameraDevice"), cameraCanvas: $("cameraCanvas"),
+  cameraDevice: $("cameraDevice"), cameraCanvas: $("cameraCanvas"),
   analysisMode: $("analysisMode"), eventControls: $("eventControls"),
   question: $("question"), triggerLabel: $("triggerLabel"), ignoreLabel: $("ignoreLabel"),
   presetSelect: $("presetSelect"),
@@ -218,7 +218,7 @@ const HELP_CONTENT = {
   },
 };
 
-let mode = "camera";
+let mode = "file";
 let delayTimer = null;
 let recentWork = [];
 let recentResponse = [];
@@ -265,10 +265,22 @@ function openHelp(key) {
   elements.helpDialog.showModal();
 }
 
+// The tab is the switch. Choosing Camera is the gesture that asks for
+// permission, and leaving it releases the device: a camera has no business
+// staying on while a file is being watched, and a separate button for it read
+// as a status while quietly restarting the stream.
 function setMode(nextMode) {
   if (running) return;
   mode = nextMode;
   const camera = mode === "camera";
+  if (camera) {
+    enableCamera().catch((error) => {
+      elements.liveText.textContent = `Could not start the camera: ${error.message}`;
+      setMode("file");
+    });
+  } else {
+    releaseCamera();
+  }
   elements.fileTab.classList.toggle("active", !camera);
   elements.cameraTab.classList.toggle("active", camera);
   elements.fileControls.classList.toggle("hidden", camera);
@@ -347,8 +359,17 @@ const DVR_MIME = ["video/webm;codecs=vp8", "video/webm;codecs=vp9"].find(
 
 function startDvr(stream) {
   if (!DVR_MIME) return null;
+  // The recorder is built first because it is the part that refuses: a stream
+  // whose tracks have ended throws here. Doing it before the element is pointed
+  // at a MediaSource keeps a refusal from leaving a dead source on the stage.
+  let recorder;
+  try {
+    recorder = new MediaRecorder(stream, { mimeType: DVR_MIME });
+  } catch (_) {
+    return null;
+  }
   const source = new MediaSource();
-  const state = { source, recorder: null, buffer: null, queue: [], pump: null };
+  const state = { source, recorder, buffer: null, queue: [], pump: null };
   elements.cameraDelayed.src = URL.createObjectURL(source);
   // Until a frame decodes there is nothing to put on the stage, so the handover
   // waits for one rather than blacking it out.
@@ -368,7 +389,6 @@ function startDvr(stream) {
       }
     }, 60);
   }, { once: true });
-  state.recorder = new MediaRecorder(stream, { mimeType: DVR_MIME });
   state.recorder.ondataavailable = async (event) => {
     if (event.data.size) state.queue.push(new Uint8Array(await event.data.arrayBuffer()));
   };
@@ -542,13 +562,15 @@ function ensureDvr() {
   } else if (!running) {
     stopDvr();
   }
+  // A refusal to record leaves the live picture on the stage rather than a
+  // delayed one that will never arrive.
+  return Boolean(dvr);
 }
 
 function showSource() {
   const hasFile = mode === "file" && uploaded;
   const hasCamera = mode === "camera" && cameraStream;
-  ensureDvr();
-  const delayed = delayConfigured();
+  const delayed = ensureDvr();
   elements.fileVideo.classList.toggle("visible", Boolean(hasFile));
   elements.cameraVideo.classList.toggle("visible", Boolean(hasCamera));
   showLiveInset(delayed);
@@ -727,12 +749,18 @@ async function uploadVideo(file) {
   }
 }
 
-async function enableCamera() {
-  // The recorder is bound to the stream it was started on, so a new stream
-  // needs a new one.
+function releaseCamera() {
+  // The recorder is bound to the stream it was started on, so it goes with it.
   stopDvr();
   if (cameraStream) cameraStream.getTracks().forEach((track) => track.stop());
-  const deviceId = elements.cameraDevice.value;
+  cameraStream = null;
+  elements.cameraVideo.srcObject = null;
+}
+
+async function enableCamera() {
+  releaseCamera();
+  const selected = elements.cameraDevice.value;
+  const deviceId = selected;
   cameraStream = await navigator.mediaDevices.getUserMedia({
     video: deviceId ? { deviceId: { exact: deviceId }, width: { ideal: 1280 }, height: { ideal: 720 } }
                     : { width: { ideal: 1280 }, height: { ideal: 720 } },
@@ -740,13 +768,10 @@ async function enableCamera() {
   });
   elements.cameraVideo.srcObject = cameraStream;
   await elements.cameraVideo.play();
-  elements.enableCamera.textContent = "Camera ready";
   const devices = await navigator.mediaDevices.enumerateDevices();
   // Rebuilding the options resets the select, which would silently undo the
   // device that was just chosen and make every switch land on the first camera.
-  const chosen = elements.cameraDevice.value
-    || cameraStream.getVideoTracks()[0]?.getSettings().deviceId
-    || "";
+  const chosen = selected || cameraStream.getVideoTracks()[0]?.getSettings().deviceId || "";
   elements.cameraDevice.innerHTML = '<option value="">Default camera</option>';
   devices.filter((device) => device.kind === "videoinput").forEach((device, index) => {
     const option = document.createElement("option");
@@ -965,8 +990,11 @@ document.addEventListener("fullscreenchange", () => {
 elements.fileTab.addEventListener("click", () => setMode("file"));
 elements.cameraTab.addEventListener("click", () => setMode("camera"));
 elements.videoInput.addEventListener("change", (event) => event.target.files[0] && uploadVideo(event.target.files[0]));
-elements.enableCamera.addEventListener("click", () => enableCamera().catch((error) => { elements.liveText.textContent = error.message; }));
-elements.cameraDevice.addEventListener("change", () => enableCamera().catch(() => {}));
+elements.cameraDevice.addEventListener("change", () => {
+  enableCamera().catch((error) => {
+    elements.liveText.textContent = `Could not switch camera: ${error.message}`;
+  });
+});
 elements.analysisMode.addEventListener("change", setAnalysisMode);
 for (const [key, preset] of Object.entries(PRESETS)) {
   const option = document.createElement("option");
