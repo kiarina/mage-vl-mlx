@@ -351,9 +351,13 @@ DELAYED badge: pointing the camera stays possible without inviting the reading
 that the model answered on the live frame. The inset is the same element the
 capture loop reads frames from, so it costs nothing beyond the second decode.
 
-The stage changes hands on the first delayed frame, not when Start is pressed.
-The recording buffer is empty at that instant, so handing it over immediately
-would black the stage out until the first chunk decodes.
+Choosing a delay moves the live picture into the corner immediately, before a
+run starts. The camera is then aimed in the arrangement the run will have, and
+the stage says what is about to fill it rather than rearranging itself at the
+moment attention is on the subject. Until the first delayed frame decodes the
+stage holds that message: the recording buffer is empty when Start is pressed,
+so nothing can be shown there yet. Selecting Off restores the full-stage live
+view, as does stopping a run with the delay left on.
 
 It only works while the stream keeps up, which is what the **RTF** badge in the
 same corner reports: seconds of work per second of video, taken as the median of

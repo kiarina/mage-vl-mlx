@@ -13,6 +13,7 @@ const elements = {
   displayDelay: $("displayDelay"), delayBadge: $("delayBadge"), delayValue: $("delayValue"),
   rtfBadge: $("rtfBadge"), rtfValue: $("rtfValue"),
   cameraDelayed: $("cameraDelayed"), pipLabel: $("pipLabel"),
+  stageTitle: $("stageTitle"), stageNote: $("stageNote"),
   viewerCard: document.querySelector(".viewer-card"),
   immersiveButton: $("immersiveButton"), immersiveToggle: $("immersiveToggle"),
   immersiveExit: $("immersiveExit"), immersiveCamera: $("immersiveCamera"),
@@ -489,12 +490,29 @@ function syncDelayBadge() {
   elements.displayDelay.disabled = mode === "camera" && !DVR_MIME;
 }
 
+// With a delay configured the live picture moves to the inset the moment a run
+// starts, so it moves there beforehand too. The arrangement is then the one the
+// camera is aimed in, and it is clear before pressing Start that the stage is
+// about to carry a delayed picture rather than this one.
+function delayPreviewActive() {
+  return !running && mode === "camera" && Boolean(cameraStream) && Boolean(DVR_MIME)
+    && (delayIsAuto() || Number(elements.displayDelay.value) > 0);
+}
+
 function showSource() {
   const hasFile = mode === "file" && uploaded;
   const hasCamera = mode === "camera" && cameraStream;
+  const preview = delayPreviewActive();
   elements.fileVideo.classList.toggle("visible", Boolean(hasFile));
   elements.cameraVideo.classList.toggle("visible", Boolean(hasCamera));
-  elements.emptyStage.classList.toggle("hidden", Boolean(hasFile || hasCamera));
+  if (!running) showLiveInset(preview);
+  elements.emptyStage.classList.toggle("hidden", Boolean((hasFile || hasCamera) && !preview));
+  elements.stageTitle.textContent = preview
+    ? "The delayed picture appears here"
+    : "Choose a video or connect a camera";
+  elements.stageNote.textContent = preview
+    ? "LIVE stays in the corner, so the camera can still be aimed."
+    : "All media stays on your own hardware.";
 }
 
 function settings(action) {
@@ -744,6 +762,7 @@ async function start() {
         if (!running || !dvr) return;
         elements.cameraDelayed.classList.add("visible");
         elements.cameraDelayed.play().catch(() => {});
+        elements.emptyStage.classList.add("hidden");
         showLiveInset(true);
       }, { once: true });
     }
@@ -765,9 +784,9 @@ function stop(notify = true) {
   delayTimer = null;
   stopDvr();
   elements.fileVideo.playbackRate = 1;
-  if (mode === "camera" && cameraStream) elements.cameraVideo.classList.add("visible");
   elements.fileVideo.pause();
   running = false;
+  showSource();
   elements.startButton.disabled = false;
   syncImmersiveControls();
   elements.stopButton.disabled = true;
@@ -918,7 +937,7 @@ elements.presetSelect.addEventListener("change", (event) => {
 });
 elements.backend.addEventListener("change", () => { clampGateThresholdToBackend(); syncBackendControls(); });
 elements.targetFps.addEventListener("change", syncBackendControls);
-elements.displayDelay.addEventListener("change", syncDelayBadge);
+elements.displayDelay.addEventListener("change", () => { syncDelayBadge(); showSource(); });
 syncDelayBadge();
 elements.windowSeconds.addEventListener("change", syncBackendControls);
 elements.segmentSeconds.addEventListener("change", () => { keepWindowAtLeastStride(); syncBackendControls(); });
