@@ -230,6 +230,17 @@ description into `A man is looking up and to the right, with his han` — wherea
 a question that asks for one short sentence ends on its own. Keep the cap as a
 latency backstop, not as the way to get short answers.
 
+Raising the cap is free when the model would stop on its own. It is a ceiling,
+not a target: generation ends at whichever comes first, the cap or the end of
+the sentence. On footage with little to describe, the same clip produced
+identical text and identical timings at caps of 16, 32 and 64. On busy footage
+the cap does bind, and then it drives everything — on an M4 Max at a 2-second
+stride, moving the cap from 16 to 64 took generation from 0.85s to 1.63s and
+pushed the real-time factor from 0.78 to 1.13, past the point where the model
+keeps up. Once it stops keeping up, the backlog delays the next window, so even
+the time to the *first* character gets worse. Measurements are in the
+[realtime benchmark lab](https://github.com/kiarina/labs/tree/main/2026/08/27/mage-vl-realtime-benchmark).
+
 The preset uses the **codec** backend, which needs the container wrapper above.
 That is not a style preference. On a clip with a goal at 6-8s, sampled in
 1-second strides over a 4-second window, the two backends behave completely
