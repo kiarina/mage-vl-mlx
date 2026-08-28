@@ -28,6 +28,11 @@ The work was done as a staged verification plan, and each stage has a lab
 record with fixtures, failed attempts, and measurements, in
 [kiarina/labs](https://github.com/kiarina/labs/blob/main/docs/mage-vl-mlx-port.md).
 
+The whole port — parity, codec token efficiency, what the streaming gate is and
+is not good for, and the real-time results — is written up in an article:
+[日本語](https://qiita.com/kiarina/items/a474d3234ca4b6e26b5b) ·
+[English](https://dev.to/kiarina/porting-microsoft-mage-vl-to-mlx-four-path-float32-parity-and-a-348-s-worst-case-on-a-fixed-clip-4jl8).
+
 ## Usage
 
 Two scripts mirror the CLI of microsoft/Mage's `mage_vl/`. Online mode is
@@ -107,12 +112,34 @@ are assembled as H.264 so the codec path can read them. See [`examples/realtime_
 the controls, privacy boundary, real-time semantics, and a step-by-step soccer
 goal filtering example.
 
+**What actually keeps up.** Measured on a fixed 768x512 clip (bfloat16 model,
+float32 gate, 16-token cap, median of 3 runs), with each segment resampled to
+8 fps before codec preprocessing:
+
+| Machine | Configuration | RTF | First text | Worst event → full text |
+|---|---|---:|---:|---:|
+| Mac Studio M4 Max | codec, 2 s stride | 0.734 | 1.263s | 3.48s |
+| MacBook Pro M1 Max | codec, 4 s stride | 0.644 | 2.205s | 6.59s |
+
+The frames backend keeps up on neither machine at any stride — its best is 1.047
+on the M4 Max and 1.991 on the M1 Max. Neither does codec fed at the source rate:
+0.862 on the M4 Max at a 4 s stride, 1.542 on the M1 Max. **Resampling the
+segment to the capture rate before codec preprocessing is what decides it**, and
+the sweet spot does not transfer between machines: the M4 Max's 2-second setting
+runs at 1.157 on the M1 Max. The UI resamples every codec segment; the benchmark
+needs `--resample-codec-input` to measure the same thing.
+
 Measure processing-only real-time factor and simulated backlog without the UI:
 
 ```sh
 uv run python scripts/benchmark_realtime.py \
-  --video clip.mp4 --segment-sec 4 --gate-threshold 0
+  --video clip.mp4 --backend codec --segment-sec 2 \
+  --resample-codec-input --target-fps 8 --gate-threshold 0
 ```
+
+Both machines' full matrices, memory over long sessions, saturation behavior,
+and a `max_new_tokens` sweep are in the
+[real-time lab](https://github.com/kiarina/labs/tree/main/2026/08/27/mage-vl-realtime-benchmark).
 
 The gate currently replays all accumulated visual history for every segment.
 This matches the official whole-stream result, but it is not yet a stateful

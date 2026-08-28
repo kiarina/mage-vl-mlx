@@ -56,7 +56,9 @@ mid-run keeps the stream going.
 
 Nothing else about the layout changes: it is the same viewer element, restyled,
 and the desktop layout is untouched. Where the Fullscreen API will not take a
-`div` (iOS Safari), the same mode still covers the viewport. Prefer this over exposing the port on the LAN: the UI has
+`div` — iOS Safari — the code falls back to covering the viewport with the same
+styling. That fallback is untested on a device: this was built and recorded
+against Android Chrome. Prefer this over exposing the port on the LAN: the UI has
 no authentication, so anyone on the same Wi-Fi could otherwise drive the model,
 while a tailnet is limited to your own devices. Note that enabling HTTPS for a
 tailnet publishes machine names to public certificate transparency logs.
@@ -317,9 +319,10 @@ same cost.
 
 This applies to uploaded video too. File segments are cut at the capture rate
 before codec preprocessing, so a 24 fps source does not quietly hand the codec
-96 frames for a 4-second window. On a MacBook Pro M1 Max that one change took a
-4-second codec segment from 8.52s to 3.11s — a real-time factor of 0.830 instead
-of 2.024 — with the vision tower 3.4× faster and generation 3.2× faster.
+96 frames for a 4-second window. Measured on a MacBook Pro M1 Max over a fixed
+clip, median of 3 runs, that one change took the 4-second codec condition from a
+real-time factor of 1.542 to 0.644 and first text from 7.166s to 2.205s — the
+vision tower going 0.731s to 0.217s and generation 4.232s to 1.486s.
 
 cv-preinfer also needs at least 8 frames per window (`--min_group_frames 8`);
 fewer produce `no canvases produced`. In camera mode the browser decides the
@@ -422,12 +425,13 @@ queue is capped and the oldest frame is dropped to make room, so the steady
 state is one queue wait — the queue length divided by the capture rate — plus
 one segment of processing. Measured on the frames backend with a 1-second
 stride, a 4-second window, 2 fps and 640x480 input, a MacBook Pro M1 Max settles
-at about 13.4s and a Mac Studio M4 Max at about 10.1s.
+at 13.4s and a Mac Studio M4 Max at 10.4s.
 
-What is bounded is the delay, not the loss. Those two runs discarded 74% and 57%
+What is bounded is the delay, not the loss. Those two runs discarded 75% and 58%
 of the frames they received, and a window nominally 4 seconds long ended up
-covering 19 and 9.5 seconds of real time. Every reading stays honest about that:
-the sampling note gives the measured rate, the real span and the share dropped,
+covering 19.0 and 10.0 seconds of real time. Every reading stays honest about
+that: the sampling note gives the measured rate, the real span and the share
+dropped,
 the timeline stamps show the span, and the segment is written at the rate the
 frames actually arrived, so a stretched window is never passed off as a dense
 one.
