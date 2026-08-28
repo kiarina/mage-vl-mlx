@@ -64,10 +64,13 @@ Nothing else about the layout changes: it is the same viewer element, restyled,
 and the desktop layout is untouched. Where the Fullscreen API will not take a
 `div` — iOS Safari — the code falls back to covering the viewport with the same
 styling. That fallback is untested on a device: this was built and recorded
-against Android Chrome. Prefer this over exposing the port on the LAN: the UI has
-no authentication, so anyone on the same Wi-Fi could otherwise drive the model,
-while a tailnet is limited to your own devices. Note that enabling HTTPS for a
-tailnet publishes machine names to public certificate transparency logs.
+against Android Chrome. Holding a phone camera back with Display delay has its
+own requirement, described under [Display delay](#display-delay), which is
+likewise unverified outside Android Chrome. Prefer this over exposing the port
+on the LAN: the UI has no authentication, so anyone on the same Wi-Fi could
+otherwise drive the model, while a tailnet is limited to your own devices. Note
+that enabling HTTPS for a tailnet publishes machine names to public certificate
+transparency logs.
 
 ## Requirements
 
@@ -369,11 +372,15 @@ follows the machine as conditions change. In a simulation of the control loop it
 reached a 4 second target in 4.5 seconds and tracked a move to 1 second
 immediately.
 
-Camera mode records the stream alongside the capture that feeds the model —
-VP8 in WebM, which both MediaRecorder and MediaSource accept — and plays the
-picture back from that buffer, so a live camera can be held back too. The codec
-backend's H.264-only requirement applies to what the model is sent, not to what
-is displayed. Where the browser cannot record, the control is disabled.
+Camera mode records the stream alongside the capture that feeds the model and
+plays the picture back from that buffer, so a live camera can be held back too.
+That recording is VP8 or VP9 in WebM, which requires a browser whose
+MediaRecorder and MediaSource both accept the same one. Chrome does. Where a
+browser does not, there is nothing to play a delayed picture out of, so the
+control is disabled and the stage stays at the live edge; the rest of the UI is
+unaffected. This is a constraint on the delayed view alone — the codec backend's
+H.264-only requirement applies to what the model is sent, not to what is
+displayed.
 
 A camera is aimed by what it shows, and a picture held back by several seconds
 cannot be aimed. So the delayed camera view takes the stage while the live one
