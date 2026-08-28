@@ -146,6 +146,11 @@ way back after experimenting. It selects the codec backend, because that is the
 configuration these measurements landed on: it is the only one where live camera
 keeps up with the stream and the streaming gate does anything at all.
 
+Starting and stopping is one button on the picture, in both layouts: fullscreen
+moves it rather than replacing it. It sits at the bottom left outside fullscreen,
+where the stage's top corners already carry the badges, and at the top right in
+fullscreen, where the bottom belongs to Live Response and Observations.
+
 The page opens on the video file tab, and the tab is the camera switch. Choosing
 Camera is the gesture that asks for permission, and leaving it releases the
 device, so a camera is never held open by a page that is showing a file. Nothing

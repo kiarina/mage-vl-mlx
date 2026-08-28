@@ -15,13 +15,13 @@ const elements = {
   cameraDelayed: $("cameraDelayed"), pipLabel: $("pipLabel"),
   stageTitle: $("stageTitle"), stageNote: $("stageNote"),
   viewerCard: document.querySelector(".viewer-card"),
-  immersiveButton: $("immersiveButton"), immersiveToggle: $("immersiveToggle"),
+  immersiveButton: $("immersiveButton"), runToggle: $("runToggle"),
   immersiveExit: $("immersiveExit"), immersiveCamera: $("immersiveCamera"),
   cooldownSeconds: $("cooldownSeconds"), showIgnored: $("showIgnored"),
   backend: $("backend"), segmentSeconds: $("segmentSeconds"), windowSeconds: $("windowSeconds"),
   targetFps: $("targetFps"), numFrames: $("numFrames"), maxTokens: $("maxTokens"), gateThreshold: $("gateThreshold"),
   samplingNote: $("samplingNote"),
-  thresholdValue: $("thresholdValue"), startButton: $("startButton"), stopButton: $("stopButton"),
+  thresholdValue: $("thresholdValue"),
   liveLabel: $("liveLabel"), liveText: $("liveText"), tokenCounter: $("tokenCounter"),
   timecode: $("timecode"), segmentState: $("segmentState"), segmentNumber: $("segmentNumber"),
   gateMetric: $("gateMetric"), firstMetric: $("firstMetric"), fullMetric: $("fullMetric"),
@@ -287,7 +287,7 @@ function setMode(nextMode) {
   elements.cameraControls.classList.toggle("hidden", !camera);
   clampGateThresholdToBackend();
   syncBackendControls();
-  syncImmersiveControls();
+  syncStageControls();
   syncDelayBadge();
   showSource();
 }
@@ -306,13 +306,14 @@ function cameraOptions() {
   return [...elements.cameraDevice.options].filter((option) => option.value);
 }
 
-function syncImmersiveControls() {
+function syncStageControls() {
   const active = immersiveActive();
   elements.immersiveButton.setAttribute("aria-pressed", String(active));
   elements.immersiveButton.setAttribute(
     "aria-label", active ? "Exit fullscreen" : "Enter fullscreen");
-  elements.immersiveToggle.textContent = running ? "Stop" : "Start";
-  elements.immersiveToggle.classList.toggle("primary", !running);
+  elements.runToggle.textContent = running ? "Stop" : "Start";
+  elements.runToggle.classList.toggle("primary", !running);
+  elements.runToggle.disabled = starting || (!running && startBlocked);
   const options = cameraOptions();
   elements.immersiveCamera.classList.toggle(
     "hidden", mode !== "camera" || options.length < 2);
@@ -332,7 +333,7 @@ async function cycleCamera() {
   elements.cameraDevice.value = next.value;
   // Label the button for the device now selected before awaiting the stream,
   // so the control never describes the camera it just left.
-  syncImmersiveControls();
+  syncStageControls();
   try {
     await enableCamera();
   } catch (error) {
@@ -342,7 +343,7 @@ async function cycleCamera() {
 
 function setImmersive(active) {
   elements.viewerCard.classList.toggle("immersive", active);
-  syncImmersiveControls();
+  syncStageControls();
   if (active && document.fullscreenElement !== elements.viewerCard) {
     elements.viewerCard.requestFullscreen?.().catch(() => {});
   } else if (!active && document.fullscreenElement) {
@@ -486,6 +487,10 @@ const SEEK_COOLDOWN_MS = 1000;
 // One recorder chunk, so "no delay" still has a frame ready to show.
 const LIVE_EDGE_S = 0.3;
 let lastSeekAt = 0;
+// A codec window with too few frames cannot be analysed, and a start already in
+// flight must not be started again by a second press of the same button.
+let startBlocked = false;
+let starting = false;
 
 function currentDisplayOffset() {
   if (mode === "file") {
@@ -692,7 +697,8 @@ function syncBackendControls() {
   }
   const tooFew = codec && codecWindowFrames() < CODEC_MIN_FRAMES;
   elements.samplingNote.classList.toggle("warn", tooFew);
-  elements.startButton.disabled = running || tooFew;
+  startBlocked = tooFew;
+  syncStageControls();
 }
 
 function keepWindowAtLeastStride() {
@@ -780,7 +786,7 @@ async function enableCamera() {
     elements.cameraDevice.append(option);
   });
   elements.cameraDevice.value = chosen;
-  syncImmersiveControls();
+  syncStageControls();
   showSource();
 }
 
@@ -837,9 +843,7 @@ async function start() {
   }
   running = true;
   streamStartedAt = performance.now();
-  elements.startButton.disabled = true;
-  syncImmersiveControls();
-  elements.stopButton.disabled = false;
+  syncStageControls();
   elements.liveLabel.parentElement.classList.add("running");
   elements.liveLabel.textContent = "LIVE";
 }
@@ -857,9 +861,7 @@ function stop(notify = true) {
   // preview a run is started from rather than tearing the picture down.
   if (!delayConfigured()) stopDvr();
   showSource();
-  elements.startButton.disabled = false;
-  syncImmersiveControls();
-  elements.stopButton.disabled = true;
+  syncStageControls();
   elements.liveLabel.parentElement.classList.remove("running");
   elements.liveLabel.textContent = "READY";
   document.querySelector(".video-stage").classList.remove("processing");
@@ -979,8 +981,19 @@ function updateClock() {
 elements.immersiveButton.addEventListener("click", () => setImmersive(!immersiveActive()));
 elements.immersiveExit.addEventListener("click", () => setImmersive(false));
 elements.immersiveCamera.addEventListener("click", () => { cycleCamera(); });
-elements.immersiveToggle.addEventListener("click", () => {
-  if (running) stop(); else start();
+elements.runToggle.addEventListener("click", async () => {
+  if (running) { stop(); return; }
+  starting = true;
+  syncStageControls();
+  try {
+    await start();
+  } catch (error) {
+    elements.liveText.textContent = error.message;
+    stop();
+  } finally {
+    starting = false;
+    syncStageControls();
+  }
 });
 // Leaving fullscreen by gesture or Escape must drop the class too.
 document.addEventListener("fullscreenchange", () => {
@@ -1018,8 +1031,6 @@ syncDelayBadge();
 elements.windowSeconds.addEventListener("change", syncBackendControls);
 elements.segmentSeconds.addEventListener("change", () => { keepWindowAtLeastStride(); syncBackendControls(); });
 elements.gateThreshold.addEventListener("input", () => { elements.thresholdValue.textContent = Number(elements.gateThreshold.value).toFixed(2); });
-elements.startButton.addEventListener("click", () => start().catch((error) => { elements.liveText.textContent = error.message; stop(); }));
-elements.stopButton.addEventListener("click", stop);
 elements.clearButton.addEventListener("click", clearLive);
 document.querySelectorAll(".help-button").forEach((button) => {
   button.addEventListener("click", () => openHelp(button.dataset.help));

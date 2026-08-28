@@ -74,10 +74,6 @@
             </select>
           </div>
 
-          <div class="band-actions">
-            <button id="startButton" class="primary-button" type="button"><span></span>Start live analysis</button>
-            <button id="stopButton" class="stop-button" type="button" disabled>Stop</button>
-          </div>
         </div>
 
         <div class="video-stage">
@@ -130,8 +126,8 @@
             </div>
           </div>
           <div class="scan-line"></div>
-          <div class="immersive-controls">
-            <button id="immersiveCamera" class="immersive-action hidden" type="button" aria-label="Switch camera" title="Switch camera">
+          <div class="stage-controls">
+            <button id="immersiveCamera" class="stage-action immersive-only hidden" type="button" aria-label="Switch camera" title="Switch camera">
               <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true" focusable="false">
                 <path d="M2 6.5A4.5 4.5 0 0 1 10.9 5M14 9.5A4.5 4.5 0 0 1 5.1 11"
                       fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
@@ -139,8 +135,8 @@
                       fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
               </svg>
             </button>
-            <button id="immersiveToggle" class="immersive-action" type="button">Start</button>
-            <button id="immersiveExit" class="immersive-action ghost" type="button" aria-label="Exit fullscreen">Exit</button>
+            <button id="runToggle" class="stage-action" type="button">Start</button>
+            <button id="immersiveExit" class="stage-action ghost immersive-only" type="button" aria-label="Exit fullscreen">Exit</button>
           </div>
         </div>
 

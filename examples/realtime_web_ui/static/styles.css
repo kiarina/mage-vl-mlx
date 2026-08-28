@@ -66,9 +66,7 @@ button, select, input[type="range"] { cursor: pointer; }
 .source-band .band-field { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 9px; }
 .source-band .band-field label { font-weight: 700; letter-spacing: .14em; text-transform: uppercase; white-space: nowrap; }
 .source-band .band-field select { margin: 0; width: auto; min-height: 42px; }
-.source-band .band-actions { display: flex; align-items: center; gap: 9px; margin-left: auto; }
-.source-band .primary-button { padding: 0 20px; white-space: nowrap; }
-.source-band .stop-button { min-height: 43px; }
+.source-band .band-field:last-child { margin-left: auto; }
 .source-band .source-control { flex: 1 1 auto; min-width: 0; margin: 0; display: flex; align-items: center; gap: 10px; }
 .source-band .source-control.hidden { display: none; }
 .source-band .upload-zone { flex: 1 1 auto; min-width: 0; min-height: 42px; padding: 6px 14px; border-radius: 11px; gap: 11px; }
@@ -248,11 +246,6 @@ footer { display: flex; justify-content: space-between; padding: 20px 4px 0; col
   .metrics-grid { grid-template-columns: 1fr 1fr; }
 }
 
-@media (max-width: 760px) {
-  .source-band .band-actions { margin-left: 0; width: 100%; }
-  .source-band .band-actions .primary-button { flex: 1 1 auto; }
-}
-
 @media (max-width: 600px) {
   .shell { width: min(100% - 24px, 1480px); padding-top: 16px; }
   .system-state { padding: 7px 9px; }
@@ -287,7 +280,18 @@ footer { display: flex; justify-content: space-between; padding: 20px 4px 0; col
 .viewer-toolbar-right { display: flex; align-items: center; gap: 8px; }
 .icon-button { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; padding: 0; border: 0; border-radius: 8px; background: none; color: #6f8c93; cursor: pointer; }
 .icon-button:hover { color: #4de5d1; background: rgba(77,229,209,.08); }
-.immersive-controls { display: none; }
+/* The run control sits on the picture in both layouts, so fullscreen is a
+   change of position rather than a different button. The stage's top corners
+   carry the badges, so outside fullscreen it goes to the bottom left, clear of
+   the live inset in the opposite corner. */
+.stage-controls {
+  position: absolute; z-index: 3;
+  left: 18px; bottom: 18px;
+  display: flex; gap: 8px;
+}
+.stage-controls .immersive-only { display: none; }
+.viewer-card.immersive .stage-controls .immersive-only { display: inline-flex; }
+.viewer-card.immersive .stage-controls .immersive-only.hidden { display: none; }
 
 .viewer-card.immersive {
   position: fixed; inset: 0; z-index: 60;
@@ -361,23 +365,22 @@ footer { display: flex; justify-content: space-between; padding: 20px 4px 0; col
   inset: calc(14px + env(safe-area-inset-top)) 16px auto;
   justify-content: flex-start; gap: 8px; z-index: 2;
 }
-.viewer-card.immersive .immersive-controls {
-  position: absolute; z-index: 3;
+.viewer-card.immersive .stage-controls {
   top: calc(14px + env(safe-area-inset-top)); right: 16px;
-  display: flex; gap: 8px;
+  left: auto; bottom: auto;
 }
-.immersive-action {
+.stage-action {
   min-height: 36px; padding: 0 16px; border-radius: 999px;
   border: 1px solid rgba(255,255,255,.28); background: rgba(0,0,0,.45);
   color: #fff; font-size: 13px; font-weight: 600; cursor: pointer;
   backdrop-filter: blur(8px);
 }
-.immersive-action:hover { border-color: rgba(255,255,255,.5); }
-.immersive-action.primary { border-color: rgba(77,229,209,.7); background: rgba(77,229,209,.85); color: #04211f; }
-.immersive-action[disabled] { opacity: .45; }
-.immersive-action.hidden { display: none; }
+.stage-action:hover { border-color: rgba(255,255,255,.5); }
+.stage-action.primary { border-color: rgba(77,229,209,.7); background: rgba(77,229,209,.85); color: #04211f; }
+.stage-action[disabled] { opacity: .45; cursor: not-allowed; }
+.stage-action.hidden { display: none; }
 /* The camera switch is an icon, so it is square rather than pill-shaped. */
-#immersiveCamera { width: 36px; padding: 0; display: inline-flex; align-items: center; justify-content: center; }
+#immersiveCamera { width: 36px; padding: 0; align-items: center; justify-content: center; }
 
 @media (max-width: 767px) {
   .viewer-card.immersive .live-text { font-size: 19px; }
