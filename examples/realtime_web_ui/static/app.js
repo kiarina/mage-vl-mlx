@@ -350,8 +350,18 @@ function startDvr(stream) {
   const source = new MediaSource();
   const state = { source, recorder: null, buffer: null, queue: [], pump: null };
   elements.cameraDelayed.src = URL.createObjectURL(source);
+  // Until a frame decodes there is nothing to put on the stage, so the handover
+  // waits for one rather than blacking it out.
+  elements.cameraDelayed.addEventListener("loadeddata", () => {
+    if (dvr !== state) return;
+    elements.cameraDelayed.play().catch(() => {});
+    showSource();
+  }, { once: true });
   source.addEventListener("sourceopen", () => {
     state.buffer = source.addSourceBuffer(DVR_MIME);
+    // Old history is left to the browser's own coded frame eviction. Removing
+    // it here emptied the buffer instead of trimming it: a removal runs to the
+    // next random access point, and this recording carries few keyframes.
     state.pump = setInterval(() => {
       if (state.buffer && !state.buffer.updating && state.queue.length) {
         try { state.buffer.appendBuffer(state.queue.shift()); } catch (_) { state.queue.length = 0; }
@@ -372,6 +382,21 @@ function startDvr(stream) {
 function showLiveInset(on) {
   elements.cameraVideo.classList.toggle("pip", on);
   elements.pipLabel.classList.toggle("hidden", !on);
+}
+
+// The inset is only a preview if it is shaped like the stage: a fixed ratio
+// crops a portrait phone's picture to a landscape strip, which shows a framing
+// nobody is recording. Width is bounded on both axes so a tall stage cannot
+// produce an inset that runs down the screen.
+function syncInsetShape() {
+  const stage = document.querySelector(".video-stage");
+  const width = stage.clientWidth;
+  const height = stage.clientHeight;
+  if (!width || !height) return;
+  const byWidth = Math.min(Math.max(width * 0.21, 112), 224);
+  const byHeight = height * 0.3 * (width / height);
+  stage.style.setProperty("--pip-aspect", `${width} / ${height}`);
+  stage.style.setProperty("--pip-w", `${Math.round(Math.min(byWidth, byHeight))}px`);
 }
 
 function stopDvr() {
@@ -438,6 +463,8 @@ const DEAD_BAND_S = 0.15;
 // corrected by seeking once and then held with the rate.
 const SEEK_THRESHOLD_S = 0.8;
 const SEEK_COOLDOWN_MS = 1000;
+// One recorder chunk, so "no delay" still has a frame ready to show.
+const LIVE_EDGE_S = 0.3;
 let lastSeekAt = 0;
 
 function currentDisplayOffset() {
@@ -453,11 +480,18 @@ function currentDisplayOffset() {
 function steerDisplay() {
   const video = mode === "file" ? elements.fileVideo : elements.cameraDelayed;
   const target = targetDelaySeconds();
-  if (!running || target <= 0 || video.paused) {
+  // A camera is steered whenever it is being recorded, including before a run,
+  // and to the live edge while Auto has no measurement to aim at yet. An
+  // uploaded video only moves while it is being analysed.
+  const steering = mode === "file" ? running && target > 0 : Boolean(dvr);
+  // Aiming at the buffer's exact end leaves the playhead with nothing decoded,
+  // so the live edge is held one chunk behind it.
+  const aim = mode === "file" ? target : Math.max(target, LIVE_EDGE_S);
+  if (!steering || video.paused) {
     if (video.playbackRate !== 1) video.playbackRate = 1;
     return;
   }
-  const error = currentDisplayOffset() - target;
+  const error = currentDisplayOffset() - aim;
   if (Math.abs(error) <= DEAD_BAND_S) {
     video.playbackRate = 1;
     return;
@@ -494,25 +528,43 @@ function syncDelayBadge() {
 // starts, so it moves there beforehand too. The arrangement is then the one the
 // camera is aimed in, and it is clear before pressing Start that the stage is
 // about to carry a delayed picture rather than this one.
-function delayPreviewActive() {
-  return !running && mode === "camera" && Boolean(cameraStream) && Boolean(DVR_MIME)
+function delayConfigured() {
+  return mode === "camera" && Boolean(cameraStream) && Boolean(DVR_MIME)
     && (delayIsAuto() || Number(elements.displayDelay.value) > 0);
+}
+
+// Recording runs for as long as a delay is selected, not just for as long as a
+// run is under way, so the stage carries the delayed picture the run will show
+// and the framing can be judged before anything is analysed.
+function ensureDvr() {
+  if (delayConfigured()) {
+    if (!dvr) dvr = startDvr(cameraStream);
+  } else if (!running) {
+    stopDvr();
+  }
 }
 
 function showSource() {
   const hasFile = mode === "file" && uploaded;
   const hasCamera = mode === "camera" && cameraStream;
-  const preview = delayPreviewActive();
+  ensureDvr();
+  const delayed = delayConfigured();
   elements.fileVideo.classList.toggle("visible", Boolean(hasFile));
   elements.cameraVideo.classList.toggle("visible", Boolean(hasCamera));
-  if (!running) showLiveInset(preview);
-  elements.emptyStage.classList.toggle("hidden", Boolean((hasFile || hasCamera) && !preview));
-  elements.stageTitle.textContent = preview
+  showLiveInset(delayed);
+  elements.cameraDelayed.classList.toggle("visible", delayed && dvrHasPicture());
+  const covered = hasFile || (hasCamera && (!delayed || dvrHasPicture()));
+  elements.emptyStage.classList.toggle("hidden", Boolean(covered));
+  elements.stageTitle.textContent = delayed
     ? "The delayed picture appears here"
     : "Choose a video or connect a camera";
-  elements.stageNote.textContent = preview
+  elements.stageNote.textContent = delayed
     ? "LIVE stays in the corner, so the camera can still be aimed."
     : "All media stays on your own hardware.";
+}
+
+function dvrHasPicture() {
+  return Boolean(dvr) && elements.cameraDelayed.readyState >= 2;
 }
 
 function settings(action) {
@@ -676,6 +728,9 @@ async function uploadVideo(file) {
 }
 
 async function enableCamera() {
+  // The recorder is bound to the stream it was started on, so a new stream
+  // needs a new one.
+  stopDvr();
   if (cameraStream) cameraStream.getTracks().forEach((track) => track.stop());
   const deviceId = elements.cameraDevice.value;
   cameraStream = await navigator.mediaDevices.getUserMedia({
@@ -753,19 +808,7 @@ async function start() {
     socket.send(JSON.stringify(settings("start_camera")));
     const interval = 1000 / Number(elements.targetFps.value);
     captureTimer = setInterval(captureCamera, interval);
-    if (DVR_MIME && (delayIsAuto() || displayDelaySeconds() > 0)) {
-      dvr = startDvr(cameraStream);
-      // The buffer is empty at this instant, so handing the stage over now would
-      // black it out until the first chunk decodes. The live picture holds the
-      // stage until there is a delayed frame to replace it with.
-      if (dvr) elements.cameraDelayed.addEventListener("loadeddata", () => {
-        if (!running || !dvr) return;
-        elements.cameraDelayed.classList.add("visible");
-        elements.cameraDelayed.play().catch(() => {});
-        elements.emptyStage.classList.add("hidden");
-        showLiveInset(true);
-      }, { once: true });
-    }
+    showSource();
   }
   running = true;
   streamStartedAt = performance.now();
@@ -782,10 +825,12 @@ function stop(notify = true) {
   captureTimer = null;
   if (delayTimer) clearTimeout(delayTimer);
   delayTimer = null;
-  stopDvr();
   elements.fileVideo.playbackRate = 1;
   elements.fileVideo.pause();
   running = false;
+  // A delay left selected keeps recording, so stopping returns to the same
+  // preview a run is started from rather than tearing the picture down.
+  if (!delayConfigured()) stopDvr();
   showSource();
   elements.startButton.disabled = false;
   syncImmersiveControls();
@@ -894,6 +939,9 @@ function formatTime(seconds) {
   const rest = seconds - minutes * 60;
   return `${String(minutes).padStart(2, "0")}:${rest.toFixed(1).padStart(4, "0")}`;
 }
+
+new ResizeObserver(syncInsetShape).observe(document.querySelector(".video-stage"));
+syncInsetShape();
 
 function updateClock() {
   const seconds = mode === "file" ? elements.fileVideo.currentTime

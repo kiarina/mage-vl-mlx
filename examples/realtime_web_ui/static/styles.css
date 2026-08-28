@@ -82,7 +82,11 @@ button, select, input[type="range"] { cursor: pointer; }
   position: relative; aspect-ratio: 16/8.5; min-height: 390px; overflow: hidden; background: #090c12;
   /* The inset live view is placed from these so that its label can be anchored
      to the same box without wrapping the video in a positioned container. */
-  --pip-w: clamp(124px, 21%, 208px);
+  /* Both are written by syncInsetShape(): the inset carries the stage's own
+     proportions so that it is a scaled copy of the main picture rather than a
+     differently cropped one, which a fixed ratio made it on a portrait phone. */
+  --pip-w: 168px;
+  --pip-aspect: 16 / 9;
   --pip-right: 16px;
   --pip-top: auto;
   --pip-bottom: 16px;
@@ -96,8 +100,8 @@ button, select, input[type="range"] { cursor: pointer; }
 .video-stage video.pip {
   display: block; position: absolute; z-index: 3;
   right: var(--pip-right); top: var(--pip-top); bottom: var(--pip-bottom);
-  width: var(--pip-w); height: auto; aspect-ratio: 16/9;
-  object-fit: cover; border-radius: 10px; background: #05070a;
+  width: var(--pip-w); height: auto; aspect-ratio: var(--pip-aspect);
+  object-fit: contain; border-radius: 10px; background: #05070a;
   border: 1px solid rgba(255,255,255,.3); box-shadow: 0 12px 34px rgba(0,0,0,.6);
 }
 /* Labelled, because an unlabelled second picture beside a DELAYED one invites
@@ -290,12 +294,13 @@ footer { display: flex; justify-content: space-between; padding: 20px 4px 0; col
 /* The bottom of an immersive stage belongs to Live Response and Observations,
    so the inset sits under the controls at the top right instead. */
 .viewer-card.immersive .video-stage {
-  --pip-w: clamp(112px, 26vw, 224px);
   --pip-right: 16px;
   --pip-top: calc(14px + env(safe-area-inset-top) + 46px);
   --pip-bottom: auto;
   --pip-label-offset: 8px;
 }
+/* The stage fills the screen with `cover` here, so the inset must crop the same
+   way to stay a preview of it. */
 .viewer-card.immersive .video-stage video.pip {
   width: var(--pip-w); height: auto; object-fit: cover;
 }
