@@ -96,9 +96,15 @@ button, select, input[type="range"] { cursor: pointer; }
      differently cropped one, which a fixed ratio made it on a portrait phone. */
   --pip-w: 168px;
   --pip-aspect: 16 / 9;
-  --pip-right: 16px;
+  /* The run control takes the bottom right corner, so the inset takes the
+     other one. Fullscreen puts the control at the top instead and the inset
+     goes back to the right. */
+  --pip-left: 16px;
+  --pip-right: auto;
   --pip-top: auto;
   --pip-bottom: 16px;
+  --pip-label-left: 24px;
+  --pip-label-right: auto;
 }
 .video-stage video { width: 100%; height: 100%; display: none; object-fit: contain; background: #05070a; }
 /* The delayed camera view takes over the stage while a delay is active, and the
@@ -108,7 +114,8 @@ button, select, input[type="range"] { cursor: pointer; }
 .video-stage video.visible { display: block; }
 .video-stage video.pip {
   display: block; position: absolute; z-index: 3;
-  right: var(--pip-right); top: var(--pip-top); bottom: var(--pip-bottom);
+  left: var(--pip-left); right: var(--pip-right);
+  top: var(--pip-top); bottom: var(--pip-bottom);
   width: var(--pip-w); height: auto; aspect-ratio: var(--pip-aspect);
   object-fit: contain; border-radius: 10px; background: #05070a;
   border: 1px solid rgba(255,255,255,.3); box-shadow: 0 12px 34px rgba(0,0,0,.6);
@@ -117,7 +124,7 @@ button, select, input[type="range"] { cursor: pointer; }
    the reading that the model is answering on the live frame. */
 .pip-label {
   position: absolute; z-index: 4;
-  right: calc(var(--pip-right) + 8px);
+  left: var(--pip-label-left); right: var(--pip-label-right);
   top: var(--pip-top); bottom: calc(var(--pip-bottom) + 8px);
   margin-top: var(--pip-label-offset, 0);
   padding: 3px 7px; border-radius: 6px;
@@ -286,7 +293,7 @@ footer { display: flex; justify-content: space-between; padding: 20px 4px 0; col
    the live inset in the opposite corner. */
 .stage-controls {
   position: absolute; z-index: 3;
-  left: 18px; bottom: 18px;
+  right: 18px; bottom: 18px;
   display: flex; gap: 8px;
 }
 .stage-controls .immersive-only { display: none; }
@@ -314,9 +321,12 @@ footer { display: flex; justify-content: space-between; padding: 20px 4px 0; col
 /* The bottom of an immersive stage belongs to Live Response and Observations,
    so the inset sits under the controls at the top right instead. */
 .viewer-card.immersive .video-stage {
+  --pip-left: auto;
   --pip-right: 16px;
   --pip-top: calc(14px + env(safe-area-inset-top) + 46px);
   --pip-bottom: auto;
+  --pip-label-left: auto;
+  --pip-label-right: 24px;
   --pip-label-offset: 8px;
 }
 /* The stage fills the screen with `cover` here, so the inset must crop the same
@@ -367,7 +377,7 @@ footer { display: flex; justify-content: space-between; padding: 20px 4px 0; col
 }
 .viewer-card.immersive .stage-controls {
   top: calc(14px + env(safe-area-inset-top)); right: 16px;
-  left: auto; bottom: auto;
+  bottom: auto;
 }
 .stage-action {
   display: inline-flex; align-items: center; justify-content: center;

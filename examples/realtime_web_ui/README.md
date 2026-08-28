@@ -147,9 +147,10 @@ configuration these measurements landed on: it is the only one where live camera
 keeps up with the stream and the streaming gate does anything at all.
 
 Starting and stopping is one button on the picture, in both layouts: fullscreen
-moves it rather than replacing it. It sits at the bottom left outside fullscreen,
-where the stage's top corners already carry the badges, and at the top right in
-fullscreen, where the bottom belongs to Live Response and Observations.
+moves it rather than replacing it. It sits at the bottom right outside
+fullscreen, where the stage's top corners already carry the badges, and at the
+top right in fullscreen, where the bottom belongs to Live Response and
+Observations. The live inset takes whichever bottom corner is left over.
 
 The page opens on the video file tab, and the tab is the camera switch. Choosing
 Camera is the gesture that asks for permission, and leaving it releases the
