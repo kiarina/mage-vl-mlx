@@ -351,6 +351,10 @@ DELAYED badge: pointing the camera stays possible without inviting the reading
 that the model answered on the live frame. The inset is the same element the
 capture loop reads frames from, so it costs nothing beyond the second decode.
 
+The stage changes hands on the first delayed frame, not when Start is pressed.
+The recording buffer is empty at that instant, so handing it over immediately
+would black the stage out until the first chunk decodes.
+
 It only works while the stream keeps up, which is what the **RTF** badge in the
 same corner reports: seconds of work per second of video, taken as the median of
 the last few segments. Below 1 the lag holds steady and a fixed delay stays in

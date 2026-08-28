@@ -737,11 +737,15 @@ async function start() {
     captureTimer = setInterval(captureCamera, interval);
     if (DVR_MIME && (delayIsAuto() || displayDelaySeconds() > 0)) {
       dvr = startDvr(cameraStream);
-      if (dvr) {
+      // The buffer is empty at this instant, so handing the stage over now would
+      // black it out until the first chunk decodes. The live picture holds the
+      // stage until there is a delayed frame to replace it with.
+      if (dvr) elements.cameraDelayed.addEventListener("loadeddata", () => {
+        if (!running || !dvr) return;
         elements.cameraDelayed.classList.add("visible");
         elements.cameraDelayed.play().catch(() => {});
         showLiveInset(true);
-      }
+      }, { once: true });
     }
   }
   running = true;
