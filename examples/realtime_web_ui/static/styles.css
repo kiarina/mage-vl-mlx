@@ -57,7 +57,18 @@ button, select, input[type="range"] { cursor: pointer; }
 
 /* Preparing the chosen source is its own step, so it gets its own strip between
    the tabs that pick the source and the picture that comes out of it. */
-.source-band { display: flex; align-items: center; gap: 10px; padding: 11px 18px; border-bottom: 1px solid var(--line); background: rgba(255,255,255,.014); }
+/* Everything about how this viewer is watched and run: which source, how far
+   the picture is held back, and whether analysis is going. Display delay lives
+   here rather than among the session settings because it changes what is shown,
+   not what is computed, and Start sits beside it because fullscreen already
+   puts it on the picture. */
+.source-band { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 11px 18px; border-bottom: 1px solid var(--line); background: rgba(255,255,255,.014); }
+.source-band .band-field { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 9px; }
+.source-band .band-field label { font-weight: 700; letter-spacing: .14em; text-transform: uppercase; white-space: nowrap; }
+.source-band .band-field select { margin: 0; width: auto; min-height: 42px; }
+.source-band .band-actions { display: flex; align-items: center; gap: 9px; margin-left: auto; }
+.source-band .primary-button { padding: 0 20px; white-space: nowrap; }
+.source-band .stop-button { min-height: 43px; }
 .source-band .source-control { flex: 1 1 auto; min-width: 0; margin: 0; display: flex; align-items: center; gap: 10px; }
 .source-band .source-control.hidden { display: none; }
 .source-band .upload-zone { flex: 1 1 auto; min-width: 0; min-height: 42px; padding: 6px 14px; border-radius: 11px; gap: 11px; }
@@ -177,7 +188,6 @@ select, input[type="text"], input[type="number"] { margin-top: 7px; padding: 9px
 input[type="range"] { width: 100%; accent-color: var(--cyan); }
 .field-note { margin: 5px 0 0; color: #666f7e; font-size: 9px; line-height: 1.45; }
 .sampling-note { margin-top: 10px; }
-.actions { display: grid; grid-template-columns: 1fr auto; gap: 9px; margin-top: 20px; }
 .primary-button, .stop-button, .secondary-button { border-radius: 11px; min-height: 43px; border: 1px solid transparent; }
 .primary-button { display: flex; align-items: center; justify-content: center; gap: 9px; background: linear-gradient(120deg, #54ead7, #71cddc); color: #04110f; font-size: 11px; font-weight: 750; box-shadow: 0 10px 26px rgba(77,229,209,.12); }
 .primary-button span { width: 7px; height: 7px; background: #071b17; border-radius: 50%; }
@@ -232,9 +242,15 @@ footer { display: flex; justify-content: space-between; padding: 20px 4px 0; col
 
 @media (max-width: 980px) {
   .workspace { grid-template-columns: 1fr; }
-  .control-card { order: -1; }
+  /* The picture leads on a narrow screen: the session settings are set once,
+     while the viewer is what the page is for. */
   .video-stage { min-height: 320px; }
   .metrics-grid { grid-template-columns: 1fr 1fr; }
+}
+
+@media (max-width: 760px) {
+  .source-band .band-actions { margin-left: 0; width: 100%; }
+  .source-band .band-actions .primary-button { flex: 1 1 auto; }
 }
 
 @media (max-width: 600px) {

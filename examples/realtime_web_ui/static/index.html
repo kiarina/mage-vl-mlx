@@ -59,6 +59,25 @@
             <button id="enableCamera" class="secondary-button" type="button">Enable camera</button>
             <select id="cameraDevice" aria-label="Camera device"><option value="">Default camera</option></select>
           </div>
+
+          <div class="band-field">
+            <div class="label-row"><label for="displayDelay">Display delay</label><button class="help-button" type="button" data-help="display-delay" aria-label="About Display delay" aria-haspopup="dialog" aria-controls="helpDialog">?</button></div>
+            <select id="displayDelay">
+              <option value="0" selected>Off · live</option>
+              <option value="auto">Auto · match response</option>
+              <option value="1">1 second</option>
+              <option value="2">2 seconds</option>
+              <option value="3">3 seconds</option>
+              <option value="4">4 seconds</option>
+              <option value="6">6 seconds</option>
+              <option value="8">8 seconds</option>
+            </select>
+          </div>
+
+          <div class="band-actions">
+            <button id="startButton" class="primary-button" type="button"><span></span>Start live analysis</button>
+            <button id="stopButton" class="stop-button" type="button" disabled>Stop</button>
+          </div>
         </div>
 
         <div class="video-stage">
@@ -239,19 +258,6 @@
             </select>
           </div>
           <div class="setting-field">
-            <div class="label-row"><label for="displayDelay">Display delay</label><button class="help-button" type="button" data-help="display-delay" aria-label="About Display delay" aria-haspopup="dialog" aria-controls="helpDialog">?</button></div>
-            <select id="displayDelay">
-              <option value="0" selected>Off · live</option>
-              <option value="auto">Auto · match response</option>
-              <option value="1">1 second</option>
-              <option value="2">2 seconds</option>
-              <option value="3">3 seconds</option>
-              <option value="4">4 seconds</option>
-              <option value="6">6 seconds</option>
-              <option value="8">8 seconds</option>
-            </select>
-          </div>
-          <div class="setting-field">
             <div class="label-row"><label for="numFrames">Max frames</label><button class="help-button" type="button" data-help="max-frames" aria-label="About Max frames" aria-haspopup="dialog" aria-controls="helpDialog">?</button></div>
             <select id="numFrames">
               <option value="8">8 frames</option>
@@ -288,10 +294,6 @@
         <input id="gateThreshold" type="range" min="0" max="1" step="0.01" value="0">
         <p class="field-note">0 describes every segment. Raise it to use StreamMind as a pre-filter.</p>
 
-        <div class="actions">
-          <button id="startButton" class="primary-button" type="button"><span></span>Start live analysis</button>
-          <button id="stopButton" class="stop-button" type="button" disabled>Stop</button>
-        </div>
       </aside>
     </section>
 
