@@ -344,6 +344,13 @@ picture back from that buffer, so a live camera can be held back too. The codec
 backend's H.264-only requirement applies to what the model is sent, not to what
 is displayed. Where the browser cannot record, the control is disabled.
 
+A camera is aimed by what it shows, and a picture held back by several seconds
+cannot be aimed. So the delayed camera view takes the stage while the live one
+shrinks into a corner of it, labelled LIVE, and the delayed picture keeps the
+DELAYED badge: pointing the camera stays possible without inviting the reading
+that the model answered on the live frame. The inset is the same element the
+capture loop reads frames from, so it costs nothing beyond the second decode.
+
 It only works while the stream keeps up, which is what the **RTF** badge in the
 same corner reports: seconds of work per second of video, taken as the median of
 the last few segments. Below 1 the lag holds steady and a fixed delay stays in

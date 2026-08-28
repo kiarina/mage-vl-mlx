@@ -12,7 +12,7 @@ const elements = {
   presetSelect: $("presetSelect"),
   displayDelay: $("displayDelay"), delayBadge: $("delayBadge"), delayValue: $("delayValue"),
   rtfBadge: $("rtfBadge"), rtfValue: $("rtfValue"),
-  cameraDelayed: $("cameraDelayed"),
+  cameraDelayed: $("cameraDelayed"), pipLabel: $("pipLabel"),
   viewerCard: document.querySelector(".viewer-card"),
   immersiveButton: $("immersiveButton"), immersiveToggle: $("immersiveToggle"),
   immersiveExit: $("immersiveExit"), immersiveCamera: $("immersiveCamera"),
@@ -365,6 +365,14 @@ function startDvr(stream) {
   return state;
 }
 
+// The live picture is what a camera is aimed with, so a delayed stage keeps it
+// as an inset instead of replacing it. The element is the same one the capture
+// loop reads frames from, which is why it was only ever hidden, never stopped.
+function showLiveInset(on) {
+  elements.cameraVideo.classList.toggle("pip", on);
+  elements.pipLabel.classList.toggle("hidden", !on);
+}
+
 function stopDvr() {
   if (!dvr) return;
   if (dvr.pump) clearInterval(dvr.pump);
@@ -373,6 +381,7 @@ function stopDvr() {
   elements.cameraDelayed.removeAttribute("src");
   elements.cameraDelayed.load();
   elements.cameraDelayed.classList.remove("visible");
+  showLiveInset(false);
   dvr = null;
 }
 
@@ -729,9 +738,9 @@ async function start() {
     if (DVR_MIME && (delayIsAuto() || displayDelaySeconds() > 0)) {
       dvr = startDvr(cameraStream);
       if (dvr) {
-        elements.cameraVideo.classList.remove("visible");
         elements.cameraDelayed.classList.add("visible");
         elements.cameraDelayed.play().catch(() => {});
+        showLiveInset(true);
       }
     }
   }

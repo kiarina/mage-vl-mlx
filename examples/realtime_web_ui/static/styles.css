@@ -78,11 +78,41 @@ button, select, input[type="range"] { cursor: pointer; }
 .live-chip span { width: 7px; height: 7px; border-radius: 50%; background: #596170; }
 .live-chip.running span { background: var(--danger); box-shadow: 0 0 10px rgba(255,111,131,.75); animation: blink 1.4s infinite; }
 
-.video-stage { position: relative; aspect-ratio: 16/8.5; min-height: 390px; overflow: hidden; background: #090c12; }
+.video-stage {
+  position: relative; aspect-ratio: 16/8.5; min-height: 390px; overflow: hidden; background: #090c12;
+  /* The inset live view is placed from these so that its label can be anchored
+     to the same box without wrapping the video in a positioned container. */
+  --pip-w: clamp(124px, 21%, 208px);
+  --pip-right: 16px;
+  --pip-top: auto;
+  --pip-bottom: 16px;
+}
 .video-stage video { width: 100%; height: 100%; display: none; object-fit: contain; background: #05070a; }
-/* The delayed camera view replaces the live one while a delay is active. */
+/* The delayed camera view takes over the stage while a delay is active, and the
+   live one shrinks into a corner rather than disappearing: aiming a camera at a
+   subject is impossible through a picture that is seconds behind. */
 #cameraDelayed.visible { display: block; }
 .video-stage video.visible { display: block; }
+.video-stage video.pip {
+  display: block; position: absolute; z-index: 3;
+  right: var(--pip-right); top: var(--pip-top); bottom: var(--pip-bottom);
+  width: var(--pip-w); height: auto; aspect-ratio: 16/9;
+  object-fit: cover; border-radius: 10px; background: #05070a;
+  border: 1px solid rgba(255,255,255,.3); box-shadow: 0 12px 34px rgba(0,0,0,.6);
+}
+/* Labelled, because an unlabelled second picture beside a DELAYED one invites
+   the reading that the model is answering on the live frame. */
+.pip-label {
+  position: absolute; z-index: 4;
+  right: calc(var(--pip-right) + 8px);
+  top: var(--pip-top); bottom: calc(var(--pip-bottom) + 8px);
+  margin-top: var(--pip-label-offset, 0);
+  padding: 3px 7px; border-radius: 6px;
+  background: rgba(4,7,11,.72); border: 1px solid rgba(255,255,255,.16);
+  color: #fff; font-size: 7px; font-weight: 720; letter-spacing: .18em;
+  backdrop-filter: blur(12px); pointer-events: none;
+}
+.pip-label.hidden { display: none; }
 .empty-stage { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--muted); }
 .empty-stage p { margin: 26px 0 7px; color: #bbc2ce; font-size: 14px; }
 .empty-stage span { font-size: 11px; }
@@ -257,6 +287,18 @@ footer { display: flex; justify-content: space-between; padding: 20px 4px 0; col
   border: 0; border-radius: 0; background: #000;
 }
 .viewer-card.immersive .video-stage video { width: 100%; height: 100%; object-fit: cover; }
+/* The bottom of an immersive stage belongs to Live Response and Observations,
+   so the inset sits under the controls at the top right instead. */
+.viewer-card.immersive .video-stage {
+  --pip-w: clamp(112px, 26vw, 224px);
+  --pip-right: 16px;
+  --pip-top: calc(14px + env(safe-area-inset-top) + 46px);
+  --pip-bottom: auto;
+  --pip-label-offset: 8px;
+}
+.viewer-card.immersive .video-stage video.pip {
+  width: var(--pip-w); height: auto; object-fit: cover;
+}
 
 /* Text floats on the picture: no card, no panel, just a soft shade at the
    bottom so words stay legible over a bright frame. */
