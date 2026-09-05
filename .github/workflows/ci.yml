@@ -1,0 +1,66 @@
+name: CI
+
+on:
+    workflow_dispatch:
+    push:
+        branches: [main]
+    pull_request:
+        branches: [main]
+
+permissions:
+    contents: read
+
+jobs:
+    smoke:
+        # mlx is Apple Silicon only, so the import smoke test needs an arm64
+        # macOS runner. It stays on the CPU device: hosted runners have no
+        # usable Metal GPU.
+        name: Import smoke on Python ${{ matrix.python-version }}
+        runs-on: macos-latest
+        strategy:
+            fail-fast: false
+            matrix:
+                python-version: ["3.12", "3.13"]
+
+        steps:
+            - uses: actions/checkout@v7
+
+            - name: Install uv
+              uses: astral-sh/setup-uv@v10.0.1
+              with:
+                  enable-cache: true
+
+            - name: Install runtime and webui dependencies
+              run: uv sync --locked --group webui --python ${{ matrix.python-version }}
+
+            - name: Import the port and run a CPU tensor op
+              run: |
+                  uv run --no-sync python - <<'PY'
+                  import importlib.metadata as meta
+
+                  for name in ["mlx", "numpy", "pillow", "opencv-python", "tokenizers", "jinja2"]:
+                      print(name, meta.version(name))
+
+                  import mlx.core as mx
+
+                  mx.set_default_device(mx.cpu)
+
+                  from mage_vl_mlx import (
+                      codec,
+                      config,
+                      language,
+                      model,
+                      prompt,
+                      realtime,
+                      streaming,
+                      video,
+                      vision,
+                  )
+
+                  ones = mx.ones((4, 4))
+                  assert float((ones @ ones).sum()) == 64.0
+                  print("import smoke ok")
+                  PY
+
+            - name: Check that the lockfile matches pyproject.toml
+              run: uv lock --check
