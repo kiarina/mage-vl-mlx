@@ -366,6 +366,12 @@ against that environment. Moving them is a re-measurement, not a dependency
 bump: the fixtures have to be regenerated and every `scripts/check_*.py` rerun
 before the numbers still mean anything.
 
+`accelerate` is currently subject to GHSA-4j2p-28q2-5m79 (CVE-2026-69112, path
+traversal and denial of service through sharded checkpoint `weight_map` entries).
+It has no patched release: the advisory covers every version up to and including
+1.14.0, which is the pin. The affected calls load checkpoints, and this group only
+ever loads the revision-pinned weights named above, to regenerate fixtures.
+
 One side effect is worth knowing: `transformers==5.15.1` requires
 `tokenizers>=0.22.0,<=0.23.0`, and 0.23.0 was never published, so the resolved
 `tokenizers` in `uv.lock` stops at 0.22.2. The port itself declares only
