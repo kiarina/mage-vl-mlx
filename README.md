@@ -99,8 +99,13 @@ way the official script skips unusable segments.
 
 `mage_vl_mlx.realtime.RealtimeSession` accepts one completed segment at a time,
 streams generated tokens through a callback, and reports preprocessing,
-vision, gate, first-token, full-generation, and peak-memory measurements. The
-model can stay in bfloat16 while the threshold-sensitive gate runs in float32.
+vision, gate, first-token, full-generation, and peak-memory measurements. By
+default the model runs in bfloat16 and the gate in float32. That keeps the
+gate's own rounding out, but not the vision tower's: the gate still reads
+bfloat16 vision tokens, so scores within a few hundredths of the threshold can
+decide differently than in float32 (see the gate section below). Pass
+`model_dtype=mx.float32` as well when decisions must be reproducible; on an M1
+Max that made each segment about 1.5x slower and doubled peak memory.
 
 The reference Web UI plays a video at normal speed or captures the Mac camera,
 then shows the generated text, gate score, latency, and backlog beside the live
@@ -284,7 +289,16 @@ mamba-ssm's CUDA kernels is untested.
 **The gate's decision is not bfloat16-safe.** On a clip where p_speak sits at
 0.5022 in float32, bfloat16 gives 0.4977 — the same step flips from speak to
 silent. Clips whose probabilities sit far from the threshold match in either
-precision. Run the gate in float32 when the decision matters.
+precision.
+
+Running only the gate in float32 is not enough. Over 228 codec segments from
+ten clips, a bfloat16 vision tower with a float32 gate flipped as many
+decisions at 0.5 (4) as running everything in bfloat16 did, because the vision
+tower's rounding moves the score about as much as the gate's does. Every flip
+had a float32 score within 0.023 of the threshold. When the decision matters,
+run the vision tower and the gate in float32, as `inference_streaming.py` does
+by default
+([lab record](https://github.com/kiarina/labs/blob/main/2026/09/23/mage-vl-gate-dtype-flip/README.md)).
 
 End to end (video file to gate logits) on an M4 Max in bfloat16: about 0.8-1.0 s
 for an 8-frame clip.
